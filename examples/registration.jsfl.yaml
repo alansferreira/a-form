@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=../schemas/jsfl.schema.json
+version: "1"
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  title: Registration
+  type: object
+  required: [person]
+  properties:
+    person:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          title: Full name
+          minLength: 2
+        email:
+          type: string
+          title: Email
+          format: email
+        phone:
+          type: string
+          title: Phone
+uiSchema:
+  person:
+    email:
+      ui:autocomplete: email
+    phone:
+      ui:options:
+        inputType: tel
+layout:
+  - type: row
+    children:
+      - type: column
+        span:
+          mobile: 12
+          tablet: 6
+        children:
+          - type: field
+            path: person.name
+      - type: column
+        span:
+          mobile: 12
+          tablet: 6
+        children:
+          - type: field
+            path: person.email
+  - type: row
+    children:
+      - type: column
+        span: 12
+        children:
+          - type: field
+            path: person.phone
+validations:
+  async:
+    - id: email-available
+      adapter: customer-api
+      paths: [person.email]
+      triggers: [blur, submit]
+      debounceMs: 350
+      timeoutMs: 5000
+      cacheTtlMs: 300000

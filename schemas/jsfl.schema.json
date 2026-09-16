@@ -1,0 +1,651 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/alansferreira/jsfl/main/schemas/jsfl.schema.json",
+  "title": "JSFL Form Specification",
+  "description": "A portable JSFL form definition combining JSON Schema, UI Schema, responsive layout, and asynchronous validation rules.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "schema", "layout"],
+  "properties": {
+    "version": {
+      "description": "JSFL specification version.",
+      "const": "1"
+    },
+    "schema": {
+      "description": "JSON Schema describing the form data and synchronous validation rules.",
+      "$ref": "#/$defs/rjsfSchemaObject"
+    },
+    "uiSchema": {
+      "description": "RJSF UI Schema containing widget and presentation options.",
+      "$ref": "#/$defs/uiSchemaNode"
+    },
+    "layout": {
+      "description": "Responsive form layout, organized as rows containing columns.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "validations": {
+      "$ref": "#/$defs/validations"
+    }
+  },
+  "$defs": {
+    "jsonValue": {
+      "description": "Any JSON-serializable value. YAML parsing guarantees JSON-compatible input."
+    },
+    "schemaType": {
+      "enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
+    },
+    "schemaTypeValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/schemaType"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/schemaType"
+          }
+        }
+      ]
+    },
+    "rjsfSchema": {
+      "description": "A JSON Schema Draft-07 schema accepted by RJSF.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/rjsfSchemaObject"
+        }
+      ]
+    },
+    "rjsfSchemaArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/rjsfSchema"
+      }
+    },
+    "rjsfSchemaMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/rjsfSchema"
+      }
+    },
+    "rjsfSchemaObject": {
+      "description": "JSON Schema Draft-07 model used by RJSF 6.x and its default AJV 8 validator.",
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "description": "JSON Schema dialect URI. RJSF uses Draft-07 by default.",
+          "type": "string",
+          "format": "uri",
+          "default": "http://json-schema.org/draft-07/schema#"
+        },
+        "$id": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "$ref": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "$comment": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/schemaTypeValue"
+        },
+        "default": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "writeOnly": {
+          "type": "boolean"
+        },
+        "deprecated": {
+          "type": "boolean"
+        },
+        "const": {
+          "$ref": "#/$defs/jsonValue"
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        "multipleOf": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "exclusiveMaximum": {
+          "type": "number"
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "exclusiveMinimum": {
+          "type": "number"
+        },
+        "maxLength": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "minLength": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "pattern": {
+          "type": "string",
+          "format": "regex"
+        },
+        "format": {
+          "type": "string"
+        },
+        "contentMediaType": {
+          "type": "string"
+        },
+        "contentEncoding": {
+          "type": "string"
+        },
+        "maxItems": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "minItems": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "uniqueItems": {
+          "type": "boolean"
+        },
+        "items": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/rjsfSchema"
+            },
+            {
+              "$ref": "#/$defs/rjsfSchemaArray"
+            }
+          ]
+        },
+        "additionalItems": {
+          "$ref": "#/$defs/rjsfSchema"
+        },
+        "contains": {
+          "$ref": "#/$defs/rjsfSchema"
+        },
+        "maxProperties": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "minProperties": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "properties": {
+          "$ref": "#/$defs/rjsfSchemaMap"
+        },
+        "patternProperties": {
+          "$ref": "#/$defs/rjsfSchemaMap"
+        },
+        "additionalProperties": {
+          "$ref": "#/$defs/rjsfSchema"
+        },
+        "propertyNames": {
+          "$ref": "#/$defs/rjsfSchema"
+        },
+        "definitions": {
+          "$ref": "#/$defs/rjsfSchemaMap"
+        },
+        "$defs": {
+          "$ref": "#/$defs/rjsfSchemaMap"
+        },
+        "dependencies": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/rjsfSchema"
+              },
+              {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        "if": {
+          "$ref": "#/$defs/rjsfSchema"
+        },
+        "then": {
+          "$ref": "#/$defs/rjsfSchema"
+        },
+        "else": {
+          "$ref": "#/$defs/rjsfSchema"
+        },
+        "allOf": {
+          "$ref": "#/$defs/rjsfSchemaArray"
+        },
+        "anyOf": {
+          "$ref": "#/$defs/rjsfSchemaArray"
+        },
+        "oneOf": {
+          "$ref": "#/$defs/rjsfSchemaArray"
+        },
+        "not": {
+          "$ref": "#/$defs/rjsfSchema"
+        }
+      },
+      "additionalProperties": true
+    },
+    "enumValue": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" }
+      ]
+    },
+    "uiGlobalOptions": {
+      "description": "RJSF UI options inherited by every field.",
+      "type": "object",
+      "properties": {
+        "addable": { "type": "boolean" },
+        "copyable": { "type": "boolean" },
+        "orderable": { "type": "boolean" },
+        "removable": { "type": "boolean" },
+        "label": { "type": "boolean" },
+        "allowClearTextInputs": { "type": "boolean" },
+        "duplicateKeySuffixSeparator": { "type": "string" },
+        "enableMarkdownInDescription": { "type": "boolean" },
+        "enableMarkdownInHelp": { "type": "boolean" },
+        "enableOptionalDataFieldForType": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["array", "object"]
+          }
+        },
+        "optionValueFormat": {
+          "enum": ["indexed", "realValue"]
+        },
+        "deprecatedHandling": {
+          "enum": ["hide", "disable", "label"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "uiSubmitButtonOptions": {
+      "type": "object",
+      "properties": {
+        "submitText": { "type": "string" },
+        "norender": { "type": "boolean" },
+        "props": {
+          "type": "object",
+          "properties": {
+            "disabled": { "type": "boolean" },
+            "className": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "uiOptions": {
+      "description": "RJSF field options. Custom widget and theme options are also allowed.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/uiGlobalOptions"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "field": { "type": "string" },
+            "classNames": { "type": "string" },
+            "style": { "type": "object" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "placeholder": { "type": "string" },
+            "help": { "type": "string" },
+            "autofocus": { "type": "boolean" },
+            "autocomplete": { "type": "string" },
+            "autocapitalize": { "type": "string" },
+            "disabled": { "type": "boolean" },
+            "emptyValue": { "$ref": "#/$defs/jsonValue" },
+            "enumDisabled": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/enumValue" }
+            },
+            "enumNames": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                }
+              ]
+            },
+            "enumOrder": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/enumValue" }
+            },
+            "optionsSchemaSelector": { "type": "string" },
+            "hideError": { "type": "boolean" },
+            "readonly": { "type": "boolean" },
+            "order": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "filePreview": { "type": "boolean" },
+            "inline": { "type": "boolean" },
+            "inputType": { "type": "string" },
+            "rows": {
+              "type": "number",
+              "minimum": 0
+            },
+            "submitButtonOptions": { "$ref": "#/$defs/uiSubmitButtonOptions" },
+            "widget": {
+              "description": "Built-in or runtime-registered widget name.",
+              "type": "string",
+              "examples": ["text", "textarea", "password", "select", "radio", "checkbox", "checkboxes", "hidden"]
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "uiSchemaNode": {
+      "description": "A serializable RJSF UiSchema node. Non-ui keys recursively match form property names.",
+      "type": "object",
+      "properties": {
+        "ui:field": { "type": "string" },
+        "ui:classNames": { "type": "string" },
+        "ui:style": { "type": "object" },
+        "ui:title": { "type": "string" },
+        "ui:description": { "type": "string" },
+        "ui:placeholder": { "type": "string" },
+        "ui:help": { "type": "string" },
+        "ui:autofocus": { "type": "boolean" },
+        "ui:autocomplete": { "type": "string" },
+        "ui:autocapitalize": { "type": "string" },
+        "ui:disabled": { "type": "boolean" },
+        "ui:emptyValue": { "$ref": "#/$defs/jsonValue" },
+        "ui:enumDisabled": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/enumValue" }
+        },
+        "ui:enumNames": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          ]
+        },
+        "ui:enumOrder": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/enumValue" }
+        },
+        "ui:optionsSchemaSelector": { "type": "string" },
+        "ui:hideError": { "type": "boolean" },
+        "ui:readonly": { "type": "boolean" },
+        "ui:order": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "ui:filePreview": { "type": "boolean" },
+        "ui:inline": { "type": "boolean" },
+        "ui:inputType": { "type": "string" },
+        "ui:rows": {
+          "type": "number",
+          "minimum": 0
+        },
+        "ui:submitButtonOptions": { "$ref": "#/$defs/uiSubmitButtonOptions" },
+        "ui:widget": {
+          "description": "Built-in or runtime-registered widget name.",
+          "type": "string",
+          "examples": ["text", "textarea", "password", "select", "radio", "checkbox", "checkboxes", "hidden"]
+        },
+        "ui:globalOptions": { "$ref": "#/$defs/uiGlobalOptions" },
+        "ui:rootFieldId": {
+          "description": "Deprecated by RJSF; prefer the Form idPrefix prop.",
+          "type": "string",
+          "deprecated": true
+        },
+        "ui:fieldReplacesAnyOrOneOf": { "type": "boolean" },
+        "ui:options": { "$ref": "#/$defs/uiOptions" },
+        "ui:definitions": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/uiSchemaNode" }
+        },
+        "items": { "$ref": "#/$defs/uiSchemaNode" },
+        "anyOf": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uiSchemaNode" }
+        },
+        "oneOf": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uiSchemaNode" }
+        }
+      },
+      "patternProperties": {
+        "^(?!ui:)(?!(?:items|anyOf|oneOf)$).+$": {
+          "$ref": "#/$defs/uiSchemaNode"
+        }
+      },
+      "unevaluatedProperties": {
+        "$ref": "#/$defs/jsonValue"
+      }
+    },
+    "nodeId": {
+      "description": "Optional stable identifier used by renderers and editor tooling.",
+      "type": "string"
+    },
+    "fieldPath": {
+      "description": "Dotted path to a property in the form JSON Schema.",
+      "type": "string",
+      "minLength": 1
+    },
+    "spanValue": {
+      "description": "Number of columns occupied in the 12-column grid.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12
+    },
+    "responsiveSpan": {
+      "description": "Column span at each responsive breakpoint. Missing values cascade during normalization.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mobile": {
+          "$ref": "#/$defs/spanValue"
+        },
+        "tablet": {
+          "$ref": "#/$defs/spanValue"
+        },
+        "desktop": {
+          "$ref": "#/$defs/spanValue"
+        }
+      }
+    },
+    "field": {
+      "description": "A field referencing a property in the form JSON Schema.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "path"],
+      "properties": {
+        "type": {
+          "const": "field"
+        },
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "path": {
+          "$ref": "#/$defs/fieldPath"
+        }
+      }
+    },
+    "column": {
+      "description": "A responsive grid column containing fields or nested rows.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "children"],
+      "properties": {
+        "type": {
+          "const": "column"
+        },
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "span": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/spanValue"
+            },
+            {
+              "$ref": "#/$defs/responsiveSpan"
+            }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/field"
+              },
+              {
+                "$ref": "#/$defs/row"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "row": {
+      "description": "A layout row containing responsive columns.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "children"],
+      "properties": {
+        "type": {
+          "const": "row"
+        },
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/column"
+          }
+        }
+      }
+    },
+    "asyncValidationRule": {
+      "description": "A remote validation rule resolved through a runtime-registered adapter.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "adapter", "paths"],
+      "properties": {
+        "id": {
+          "description": "Unique rule identifier.",
+          "type": "string",
+          "minLength": 1
+        },
+        "adapter": {
+          "description": "Identifier of the runtime-registered validation adapter.",
+          "type": "string",
+          "minLength": 1
+        },
+        "paths": {
+          "description": "Form fields validated by this rule.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/fieldPath"
+          }
+        },
+        "dependsOn": {
+          "description": "Additional field paths whose changes cause the rule to be reevaluated.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fieldPath"
+          }
+        },
+        "triggers": {
+          "description": "Events that execute the validation rule.",
+          "type": "array",
+          "items": {
+            "enum": ["change", "blur", "submit", "manual"]
+          }
+        },
+        "debounceMs": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "timeoutMs": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "cacheTtlMs": {
+          "$ref": "#/$defs/nonNegativeInteger"
+        },
+        "failurePolicy": {
+          "description": "Whether an adapter failure blocks submission or is reported as a warning.",
+          "enum": ["block", "warning"]
+        }
+      }
+    },
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "validations": {
+      "description": "Validation rules outside the form JSON Schema.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "async": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/asyncValidationRule"
+          }
+        }
+      }
+    }
+  }
+}
