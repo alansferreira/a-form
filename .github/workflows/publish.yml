@@ -1,0 +1,75 @@
+name: Publish packages
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Update npm
+        run: npm install --global npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify packages
+        run: npm run verify
+
+      - name: Check release versions
+        if: github.event_name == 'push'
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+
+          const expected = process.env.RELEASE_VERSION.replace(/^v/, "");
+          const packages = [
+            "core",
+            "parser",
+            "async-validation",
+            "adapter-fetch",
+            "react",
+          ];
+
+          for (const packageDirectory of packages) {
+            const manifest = JSON.parse(
+              readFileSync(`packages/${packageDirectory}/package.json`, "utf8"),
+            );
+
+            if (manifest.version !== expected) {
+              throw new Error(
+                `${manifest.name} is ${manifest.version}, expected ${expected}`,
+              );
+            }
+          }
+          NODE
+
+      - name: Publish packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish ./packages/core --access public --provenance
+          npm publish ./packages/parser --access public --provenance
+          npm publish ./packages/async-validation --access public --provenance
+          npm publish ./packages/adapter-fetch --access public --provenance
+          npm publish ./packages/react --access public --provenance

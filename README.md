@@ -66,7 +66,29 @@ In a React consumer, add the packages used by the complete YAML-to-form pipeline
 npm install a-form-core a-form-parser a-form-react
 ```
 
-> The packages are currently private workspace packages and are not published to the public npm registry yet.
+## Publishing
+
+The `Publish packages` GitHub Actions workflow verifies, builds, and publishes all
+packages when a tag matching their version is pushed. Calculate the next version
+from Conventional Commits and synchronize every package with:
+
+```bash
+npm run version:bump
+```
+
+Lerna updates all workspace versions and internal dependencies, generates the
+changelogs, creates the release commit and tag, and pushes both. Pass `major`,
+`minor`, or `patch` to override the Conventional Commits recommendation:
+
+```bash
+npm run version:bump -- minor
+```
+
+Append `--yes` for non-interactive execution.
+
+For the first publication, add an npm granular access token as the `NPM_TOKEN`
+repository secret. Afterward, each package can use npm Trusted Publishing for
+this repository and `.github/workflows/publish.yml`.
 
 ## Your First AForm
 
