@@ -9,11 +9,8 @@ import {
   ChevronRight,
   CircleDot,
   Clipboard,
-  Code2,
   Database,
   Download,
-  Eye,
-  FileUp,
   GripVertical,
   Hash,
   Laptop,
@@ -21,7 +18,6 @@ import {
   Mail,
   Monitor,
   Plus,
-  Play,
   RotateCcw,
   Rows3,
   Settings2,
@@ -31,7 +27,6 @@ import {
   Trash2,
   Type,
   Upload,
-  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useDeferredValue, useRef, useState } from 'react'
@@ -80,18 +75,9 @@ const initialRows: readonly BuilderRow[] = [
   },
 ]
 
-type BuilderView = 'design' | 'code' | 'preview'
+type BuilderView = 'design' | 'preview'
 type InspectorView = 'properties' | 'spec'
 type Viewport = 'mobile' | 'tablet' | 'desktop'
-type ImportMode = 'replace' | 'merge'
-
-const initialImportSource = `person:
-  name: Johnathan Vance
-  email: name@example.com
-  phone: +1 (555) 019-2834
-  company: Acme Corp
-  role: Lead Architect
-`
 
 const kindIcons: Record<FieldKind, LucideIcon> = {
   text: Type,
@@ -140,10 +126,6 @@ export function BuilderApp() {
   const [viewport, setViewport] = useState<Viewport>('desktop')
   const [notice, setNotice] = useState('Drag a source into any available grid slot.')
   const [copied, setCopied] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [importSource, setImportSource] = useState(initialImportSource)
-  const [importMode, setImportMode] = useState<ImportMode>('merge')
-  const [codeDraft, setCodeDraft] = useState('')
   const fieldSequence = useRef(4)
   const rowSequence = useRef(3)
   const importInput = useRef<HTMLInputElement>(null)
@@ -154,11 +136,6 @@ export function BuilderApp() {
   const normalized = normalizeFormSpec(spec)
   const specYaml = formSpecToYaml(rows, baseSpec)
   const selectedField = rows.flatMap((row) => row.fields).find((field) => field.id === selectedFieldId)
-
-  const selectView = (nextView: BuilderView) => {
-    if (nextView === 'code') setCodeDraft(specYaml)
-    setView(nextView)
-  }
 
   const beginDrag = (event: React.DragEvent, payload: PalettePayload) => {
     event.dataTransfer.effectAllowed = payload.source === 'canvas' ? 'move' : 'copy'
@@ -285,21 +262,18 @@ export function BuilderApp() {
     setNotice('Builder reset to the starter layout.')
   }
 
-  const readImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importSpec = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0]
     event.currentTarget.value = ''
     if (!file) return
-    setImportSource(await file.text())
-  }
 
-  const applyCode = () => {
-    const parsed = parseYamlSpec(codeDraft)
+    const parsed = parseYamlSpec(await file.text())
     const diagnostics = parsed.value
       ? [...parsed.diagnostics, ...validateFormSpec(parsed.value)]
       : parsed.diagnostics
     const error = diagnostics.find((diagnostic) => diagnostic.severity === 'error')
     if (!parsed.value || error) {
-      setNotice(`Could not apply YAML: ${error?.message ?? 'invalid AForm spec.'}`)
+      setNotice(`Could not import ${file.name}: ${error?.message ?? 'invalid AForm spec.'}`)
       return
     }
 
@@ -314,47 +288,10 @@ export function BuilderApp() {
       setPendingPayload(undefined)
       setView('design')
       setInspectorView('properties')
-      setNotice(`YAML applied with ${importedRows.length} row${importedRows.length === 1 ? '' : 's'}.`)
+      setNotice(`${file.name} imported with ${importedRows.length} row${importedRows.length === 1 ? '' : 's'}.`)
     } catch (error) {
-      setNotice(`Could not apply YAML: ${error instanceof Error ? error.message : 'unsupported layout.'}`)
+      setNotice(`Could not import ${file.name}: ${error instanceof Error ? error.message : 'unsupported layout.'}`)
     }
-  }
-
-  const compileImportedData = () => {
-    const parsed = parseExampleData(importSource)
-    if (!parsed.value) {
-      setNotice(`Could not import data: ${parsed.error ?? 'invalid JSON or YAML.'}`)
-      return
-    }
-
-    const existingPaths = new Set(importMode === 'merge' ? rows.flatMap((row) => row.fields.map((field) => field.path)) : [])
-    const importedFields = listDataPaths(parsed.value)
-      .filter((node) => !node.branch && !existingPaths.has(internalPath(node.jsonPath)))
-      .map((node) => createField({
-        source: 'data',
-        path: internalPath(node.jsonPath),
-        jsonPath: node.jsonPath,
-        label: node.label,
-        kind: inferFieldKind(node.jsonPath, node.value),
-        sampleValue: node.value,
-      }))
-    const importedRows: BuilderRow[] = []
-    for (const field of importedFields) {
-      const current = importedRows.at(-1)
-      const used = current?.fields.reduce((total, item) => total + item.span, 0) ?? 12
-      if (!current || used + field.span > 12) {
-        importedRows.push({ id: `row-${rowSequence.current++}`, fields: [field] })
-      } else {
-        importedRows[importedRows.length - 1] = { ...current, fields: [...current.fields, field] }
-      }
-    }
-
-    setDataSource(importSource)
-    setRows((current) => importMode === 'replace' ? importedRows : [...current, ...importedRows])
-    setBaseSpec(undefined)
-    setSelectedFieldId(importedFields[0]?.id ?? selectedFieldId)
-    setImportOpen(false)
-    setNotice(`${importedFields.length} field${importedFields.length === 1 ? '' : 's'} compiled from imported data.`)
   }
 
   const copySpec = async () => {
@@ -380,17 +317,16 @@ export function BuilderApp() {
     <main className="builder-shell">
       <header className="builder-topbar">
         <div className="builder-brand-mark"><Sparkles size={17} /></div>
-        <div className="builder-brand-copy"><strong>AForm</strong><span>/ Registration <em>v1</em></span></div>
+        <div className="builder-brand-copy"><strong>AForm Builder</strong><span>Visual playground</span></div>
         <div className="builder-view-switch" aria-label="Builder view">
-          <button className={view === 'design' ? 'active' : ''} type="button" onClick={() => selectView('design')}><Rows3 size={15} /> Design</button>
-          <button className={view === 'code' ? 'active' : ''} type="button" onClick={() => selectView('code')}><Code2 size={15} /> Code (YAML)</button>
-          <button className={view === 'preview' ? 'active' : ''} type="button" onClick={() => selectView('preview')}><Eye size={15} /> Preview</button>
+          <button className={view === 'design' ? 'active' : ''} type="button" onClick={() => setView('design')}><Rows3 size={15} /> Design</button>
+          <button className={view === 'preview' ? 'active' : ''} type="button" onClick={() => setView('preview')}><Monitor size={15} /> Preview</button>
         </div>
         <div className="builder-top-actions">
-          <input ref={importInput} type="file" accept=".yaml,.yml,.json,text/yaml,application/yaml,application/json" hidden onChange={readImportFile} />
-          <button type="button" onClick={() => setImportOpen(true)}><Upload size={15} /> YAML Import / Export</button>
+          <input ref={importInput} type="file" accept=".yaml,.yml,.json,text/yaml,application/yaml,application/json" hidden onChange={importSpec} />
+          <button type="button" onClick={() => importInput.current?.click()}><Upload size={15} /> Import YAML</button>
           <button className="builder-icon-action" type="button" title="Reset builder" aria-label="Reset builder" onClick={reset}><RotateCcw size={15} /></button>
-          <button className="builder-run-action" type="button" onClick={() => selectView('preview')}><Play size={15} /> Run Preview</button>
+          <button type="button" onClick={downloadSpec}><Download size={15} /> Export YAML</button>
         </div>
       </header>
 
@@ -470,9 +406,8 @@ export function BuilderApp() {
 
         <section className="builder-stage">
           <div className="builder-stage-heading">
-            <div><strong>{view === 'design' ? 'User Registration Flow' : view === 'code' ? 'AForm specification' : 'Live preview'}</strong><span>{view === 'design' ? 'Structured 12-column responsive layout' : `${rows.flatMap((row) => row.fields).length} fields`}</span></div>
+            <div><strong>{view === 'design' ? 'Form layout' : 'Live preview'}</strong><span>{view === 'design' ? '12-column virtual grid' : `${rows.flatMap((row) => row.fields).length} fields`}</span></div>
             {view === 'design' && <button type="button" onClick={addRow}><Plus size={15} /> Add row</button>}
-            {view === 'code' && <button type="button" onClick={applyCode}><Check size={15} /> Apply YAML</button>}
           </div>
           {view === 'design' ? (
             <div className="builder-grid-canvas">
@@ -524,11 +459,6 @@ export function BuilderApp() {
               })}
               <button className="builder-add-row" type="button" onClick={addRow}><Plus size={16} /> Add grid row</button>
             </div>
-          ) : view === 'code' ? (
-            <div className="builder-code-stage">
-              <div className="builder-code-heading"><span>form.a-form.yaml</span><button type="button" onClick={downloadSpec}><Download size={14} /> Download</button></div>
-              <Editor aria-label="Editable AForm YAML" language="yaml" path="playground-v2-form.a-form.yaml" theme="a-form-dark" value={codeDraft} onChange={(value) => setCodeDraft(value ?? '')} options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }} />
-            </div>
           ) : (
             <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} /></div>
           )}
@@ -565,35 +495,6 @@ export function BuilderApp() {
           )}
         </aside>
       </section>
-      {importOpen && (
-        <div className="builder-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setImportOpen(false)}>
-          <section className="builder-import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
-            <header>
-              <span className="builder-modal-icon"><Braces size={19} /></span>
-              <div><strong id="import-title">Import schema or data</strong><small>Paste JSON or YAML to map reactive fields automatically</small></div>
-              <button type="button" title="Close" aria-label="Close import dialog" onClick={() => setImportOpen(false)}><X size={17} /></button>
-            </header>
-            <div className="builder-import-tools">
-              <span><Code2 size={14} /> Paste code (JSON / YAML)</span>
-              <button type="button" onClick={() => importInput.current?.click()}><FileUp size={14} /> Upload file</button>
-              <em><Check size={13} /> Syntax checked on import</em>
-            </div>
-            <div className="builder-import-body">
-              <label htmlFor="import-source">schema_import.yaml</label>
-              <textarea id="import-source" spellCheck={false} value={importSource} onChange={(event) => setImportSource(event.target.value)} />
-              <fieldset>
-                <legend>Import mode</legend>
-                <label className={importMode === 'replace' ? 'selected' : ''}><input type="radio" name="import-mode" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} /><span><strong>Replace current schema</strong><small>Clear mapped fields and rebuild the form.</small></span></label>
-                <label className={importMode === 'merge' ? 'selected' : ''}><input type="radio" name="import-mode" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} /><span><strong>Merge with existing fields</strong><small>Keep the canvas and add newly detected paths.</small></span></label>
-              </fieldset>
-            </div>
-            <footer>
-              <span><Database size={15} /> {parseExampleData(importSource).value ? `${listDataPaths(parseExampleData(importSource).value!).filter((node) => !node.branch).length} fields detected` : 'Waiting for valid data'}</span>
-              <div><button type="button" onClick={() => setImportOpen(false)}>Cancel</button><button className="primary" type="button" onClick={compileImportedData}><Upload size={15} /> Load & compile fields</button></div>
-            </footer>
-          </section>
-        </div>
-      )}
       {touchDrag && <TouchDragOverlay drag={touchDrag} />}
     </main>
   )

@@ -1,5 +1,5 @@
 {
-  "name": "a-form-playground-v2",
+  "name": "a-form-playground",
   "private": true,
   "version": "0.1.5",
   "type": "module",
@@ -10,8 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fontsource/jetbrains-mono": "^5.3.0",
-    "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "@fontsource/dm-mono": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
+    "@fontsource/newsreader": "^5.3.0",
     "@monaco-editor/react": "^4.7.0",
     "a-form-core": "^0.1.5",
     "a-form-parser": "^0.1.5",
