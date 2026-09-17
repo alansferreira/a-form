@@ -20,7 +20,7 @@ import type {
   AsyncValidationIssue,
   AsyncValidationResult,
   AsyncValidationStatus,
-} from "jsfl-async-validation";
+} from "a-form-async-validation";
 import type {
   AsyncValidationRuleSpec,
   AsyncValidationTrigger,
@@ -28,34 +28,34 @@ import type {
   JsonValue,
   NormalizedFormSpec,
   NormalizedRowNode,
-} from "jsfl-core";
+} from "a-form-core";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 
-export type JSFLViewport = "mobile" | "tablet" | "desktop";
+export type AFormViewport = "mobile" | "tablet" | "desktop";
 
-export interface JSFLAsyncValidationEvent {
+export interface AFormAsyncValidationEvent {
   readonly ruleId: string;
   readonly fieldPath: string;
   readonly trigger: AsyncValidationTrigger;
   readonly result: AsyncValidationResult;
 }
 
-export interface JSFLAsyncValidationOptions {
+export interface AFormAsyncValidationOptions {
   readonly engine: AsyncValidationEngine;
-  readonly onResult?: (event: JSFLAsyncValidationEvent) => void;
+  readonly onResult?: (event: AFormAsyncValidationEvent) => void;
 }
 
-export interface JSFLFormProps {
+export interface AFormProps {
   readonly spec: NormalizedFormSpec;
-  readonly viewport?: JSFLViewport;
+  readonly viewport?: AFormViewport;
   readonly value?: JsonObject;
   readonly disabled?: boolean;
   readonly readOnly?: boolean;
   readonly noHtml5Validate?: boolean;
   readonly className?: string;
   readonly submitLabel?: ReactNode;
-  readonly asyncValidation?: JSFLAsyncValidationOptions;
+  readonly asyncValidation?: AFormAsyncValidationOptions;
   readonly onChange?: (value: JsonObject) => void;
   readonly onSubmit?: (value: JsonObject, event: FormEvent<HTMLFormElement>) => void;
 }
@@ -106,7 +106,7 @@ function addError(errorSchema: ErrorSchema, path: string, message: string): void
 
 function collectLayout(
   rows: readonly NormalizedRowNode[],
-  viewport: JSFLViewport,
+  viewport: AFormViewport,
   spans: Record<string, number>,
   order: Record<string, number>,
 ): void {
@@ -139,7 +139,7 @@ function createFieldTemplate() {
     const relation = relationToLayout(path, context);
     const asyncState = context.asyncFields[path];
 
-    if (props.hidden) return <div className="jsfl-hidden-field" hidden>{props.children}</div>;
+    if (props.hidden) return <div className="a-form-hidden-field" hidden>{props.children}</div>;
     if (!relation.exact && !relation.ancestor && !relation.descendant) return null;
     if (relation.ancestor && !relation.exact) return <>{props.children}</>;
 
@@ -156,15 +156,15 @@ function createFieldTemplate() {
 
     return (
       <div
-        className={`jsfl-field ${relation.exact ? "jsfl-layout-field" : "jsfl-nested-field"} ${props.classNames ?? ""}`}
-        data-jsfl-field={relation.exact ? path : undefined}
+        className={`a-form-field ${relation.exact ? "a-form-layout-field" : "a-form-nested-field"} ${props.classNames ?? ""}`}
+        data-a-form-field={relation.exact ? path : undefined}
         style={style}
       >
         <WrapIfAdditionalTemplate {...props}>
           {props.displayLabel && !isCheckbox && (
-            <label className="jsfl-label" htmlFor={props.id}>
+            <label className="a-form-label" htmlFor={props.id}>
               {props.label}
-              {props.required ? <span className="jsfl-required"> *</span> : null}
+              {props.required ? <span className="a-form-required"> *</span> : null}
             </label>
           )}
           {props.displayLabel ? props.description : null}
@@ -173,11 +173,11 @@ function createFieldTemplate() {
           {props.help}
         </WrapIfAdditionalTemplate>
         {asyncState?.status === "pending" && (
-          <span className="jsfl-async-status" role="status">Validating...</span>
+          <span className="a-form-async-status" role="status">Validating...</span>
         )}
         {asyncState?.issues.filter(() => !asyncState.blocking).map((issue) => (
           <span
-            className={`jsfl-async-issue jsfl-async-issue-${issue.severity}`}
+            className={`a-form-async-issue a-form-async-issue-${issue.severity}`}
             key={`${issue.code}:${issue.message}`}
             role={issue.severity === "error" ? "alert" : "status"}
           >
@@ -204,8 +204,8 @@ function createObjectFieldTemplate() {
 
     return (
       <div
-        className={`jsfl-object ${path === "" ? "jsfl-object-root" : relation.ancestor && !relation.exact ? "jsfl-object-bridge" : "jsfl-object-nested"}`}
-        data-jsfl-object={path}
+        className={`a-form-object ${path === "" ? "a-form-object-root" : relation.ancestor && !relation.exact ? "a-form-object-bridge" : "a-form-object-nested"}`}
+        data-a-form-object={path}
         style={style}
       >
         {showMetadata && props.title && (
@@ -229,7 +229,7 @@ function createObjectFieldTemplate() {
           />
         )}
         {(props.readonly || props.disabled || !showMetadata) && props.optionalDataControl}
-        {props.properties.map(({ content, name }) => <div className="jsfl-property" key={name} style={{ display: "contents" }}>{content}</div>)}
+        {props.properties.map(({ content, name }) => <div className="a-form-property" key={name} style={{ display: "contents" }}>{content}</div>)}
         {canExpand(props.schema, props.uiSchema, props.formData) && (
           <AddButton
             id={buttonId(props.fieldPathId, "add")}
@@ -247,7 +247,7 @@ function createObjectFieldTemplate() {
 const FieldTemplate = createFieldTemplate();
 const ObjectFieldTemplate = createObjectFieldTemplate();
 
-export function JSFLForm({
+export function AForm({
   spec,
   viewport = "desktop",
   value,
@@ -259,7 +259,7 @@ export function JSFLForm({
   asyncValidation,
   onChange,
   onSubmit,
-}: JSFLFormProps) {
+}: AFormProps) {
   const [records, setRecords] = useState<Readonly<Record<string, ValidationRecord>>>({});
   const [pending, setPending] = useState<Readonly<Record<string, string>>>({});
   const latestValue = useRef<JsonObject>(value ?? {});
@@ -362,7 +362,7 @@ export function JSFLForm({
   });
   const isPending = Object.keys(pending).length > 0;
   const SubmitButton = () => (
-    <button className="jsfl-submit" disabled={isPending} type="submit">
+    <button className="a-form-submit" disabled={isPending} type="submit">
       {submitLabel}
     </button>
   );

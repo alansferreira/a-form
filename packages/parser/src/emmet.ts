@@ -5,7 +5,7 @@ import type {
   ResponsiveSpan,
   RowNode,
   SourceRange,
-} from "jsfl-core";
+} from "a-form-core";
 
 type TokenKind = "identifier" | "number" | "string" | ">" | "+" | "(" | ")" | "[" | "]" | "=" | "eof";
 

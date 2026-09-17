@@ -1,7 +1,6 @@
 {
-  "name": "jsfl-react",
-  "version": "0.1.0",
-  "private": true,
+  "name": "a-form-react",
+  "version": "0.1.4",
   "type": "module",
   "exports": {
     ".": {
@@ -20,8 +19,8 @@
     "@rjsf/core": "^6.10.0",
     "@rjsf/utils": "^6.10.0",
     "@rjsf/validator-ajv8": "^6.10.0",
-    "jsfl-async-validation": "0.1.0",
-    "jsfl-core": "0.1.0"
+    "a-form-async-validation": "^0.1.4",
+    "a-form-core": "^0.1.4"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

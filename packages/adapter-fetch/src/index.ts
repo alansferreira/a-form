@@ -2,7 +2,7 @@ import type {
   AsyncValidationAdapter,
   AsyncValidationAdapterResponse,
   AsyncValidationRequest,
-} from "jsfl-async-validation";
+} from "a-form-async-validation";
 
 export interface FetchAdapterOptions {
   readonly id: string;

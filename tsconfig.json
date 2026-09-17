@@ -3,7 +3,6 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/parser" },
-    { "path": "./packages/language-service" },
     { "path": "./packages/async-validation" },
     { "path": "./packages/adapter-fetch" },
     { "path": "./packages/react" }

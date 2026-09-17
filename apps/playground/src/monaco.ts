@@ -15,7 +15,7 @@ globalThis.MonacoEnvironment = {
 
 loader.config({ monaco })
 
-monaco.editor.defineTheme('jsfl-dark', {
+monaco.editor.defineTheme('a-form-dark', {
   base: 'vs-dark',
   inherit: true,
   rules: [],

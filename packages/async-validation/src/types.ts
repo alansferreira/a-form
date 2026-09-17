@@ -1,4 +1,4 @@
-import type { AsyncValidationRuleSpec, AsyncValidationTrigger, JsonValue } from "jsfl-core";
+import type { AsyncValidationRuleSpec, AsyncValidationTrigger, JsonValue } from "a-form-core";
 
 export type AsyncValidationStatus = "idle" | "pending" | "valid" | "invalid" | "unavailable" | "cancelled";
 

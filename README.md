@@ -1,12 +1,12 @@
-# JSFL Forms
+# AForm
 
 **Write the form once. Shape it everywhere.**
 
-JSFL Forms turns a portable YAML specification into a responsive React form. Keep data rules in JSON Schema, presentation hints in UI Schema, and layout decisions in a compact 12-column grid.
+AForm turns a portable YAML specification into a responsive React form. Keep data rules in JSON Schema, presentation hints in UI Schema, and layout decisions in a compact 12-column grid.
 
-The result is one declarative form contract that can be parsed, validated, inspected by editor tooling, and rendered with `JSFLForm`.
+The result is one declarative form contract that can be parsed, validated, inspected by editor tooling, and rendered with `AForm`.
 
-## Why JSFL Forms?
+## Why AForm?
 
 - **Schema-first by design.** Use standard JSON Schema for data shape and validation.
 - **Layout without component noise.** Reference schema paths from responsive rows and columns.
@@ -18,25 +18,25 @@ The result is one declarative form contract that can be parsed, validated, inspe
 ## The Big Picture
 
 ```text
-                                    JSFL FORMS
+                                      AFORM
 
   AUTHORING                         DOMAIN PIPELINE                    RUNTIME
   =============================     ==============================     =============================
 
   +---------------------------+     +----------------------------+     +---------------------------+
-  | *.jsfl.yaml             |     | jsfl-parser                |     | React application         |
+  | *.a-form.yaml             |     | a-form-parser                |     | React application         |
   |                           |     |                            |     |                           |
   | JSON Schema               |---->| parseYamlSpec()            |     | state / API / routing     |
   | UI Schema                 |     | validateFormSpec()         |     +-------------+-------------+
   | responsive layout        |     | normalizeFormSpec()        |                   |
   | async validation rules   |     +-------------+--------------+                   v
   +-------------+-------------+                   |                    +---------------------------+
-                |                                 | NormalizedFormSpec | jsfl-react                |
+                |                                 | NormalizedFormSpec | a-form-react                |
                 |                                 +------------------->|                           |
-                |                                                      | <JSFLForm />            |
+                |                                                      | <AForm />            |
                 v                                                      | RJSF + AJV                |
   +---------------------------+                                        | responsive 12-col layout  |
-  | Language service          |                                        +-------------+-------------+
+  | Editor schema             |                                        +-------------+-------------+
   |                           |                                                      |
   | diagnostics              |                                                      v
   | completion + hover       |                                        +---------------------------+
@@ -57,24 +57,46 @@ Inside this monorepo, install dependencies and build the workspace packages:
 
 ```bash
 npm install
-npm run build --workspace jsfl-react
+npm run build --workspace a-form-react
 ```
 
 In a React consumer, add the packages used by the complete YAML-to-form pipeline:
 
 ```bash
-npm install jsfl-core jsfl-parser jsfl-react
+npm install a-form-core a-form-parser a-form-react
 ```
 
-> The packages are currently private workspace packages and are not published to the public npm registry yet.
+## Publishing
 
-## Your First JSFLForm
+The `Publish packages` GitHub Actions workflow verifies, builds, and publishes all
+packages when a tag matching their version is pushed. Calculate the next version
+from Conventional Commits and synchronize every package with:
 
-`JSFLForm` accepts a normalized specification and works as a controlled React component.
+```bash
+npm run version:bump
+```
+
+Lerna updates all workspace versions and internal dependencies, generates the
+changelogs, creates the release commit and tag, and pushes both. Pass `major`,
+`minor`, or `patch` to override the Conventional Commits recommendation:
+
+```bash
+npm run version:bump -- minor
+```
+
+Append `--yes` for non-interactive execution.
+
+For the first publication, add an npm granular access token as the `NPM_TOKEN`
+repository secret. Afterward, each package can use npm Trusted Publishing for
+this repository and `.github/workflows/publish.yml`.
+
+## Your First AForm
+
+`AForm` accepts a normalized specification and works as a controlled React component.
 
 ```tsx
-import type { JsonObject, NormalizedFormSpec } from "jsfl-core";
-import { JSFLForm } from "jsfl-react";
+import type { JsonObject, NormalizedFormSpec } from "a-form-core";
+import { AForm } from "a-form-react";
 import { useState } from "react";
 
 const spec: NormalizedFormSpec = {
@@ -109,7 +131,7 @@ export function ContactForm() {
   const [value, setValue] = useState<JsonObject>({});
 
   return (
-    <JSFLForm
+    <AForm
       spec={spec}
       value={value}
       onChange={setValue}
@@ -125,13 +147,13 @@ export function ContactForm() {
 **Author in YAML. Render with confidence.** Parse, validate, and normalize before passing a specification to React.
 
 ```tsx
-import type { JsonObject } from "jsfl-core";
+import type { JsonObject } from "a-form-core";
 import {
   normalizeFormSpec,
   parseYamlSpec,
   validateFormSpec,
-} from "jsfl-parser";
-import { JSFLForm } from "jsfl-react";
+} from "a-form-parser";
+import { AForm } from "a-form-react";
 import { useState } from "react";
 
 export function FormFromYaml({ source }: { source: string }) {
@@ -153,7 +175,7 @@ export function FormFromYaml({ source }: { source: string }) {
   }
 
   return (
-    <JSFLForm
+    <AForm
       spec={normalizeFormSpec(parsed.value)}
       value={value}
       onChange={setValue}
@@ -163,48 +185,48 @@ export function FormFromYaml({ source }: { source: string }) {
 }
 ```
 
-See [examples/registration.jsfl.yaml](examples/registration.jsfl.yaml) for a complete source document.
+See [examples/registration.a-form.yaml](examples/registration.a-form.yaml) for a complete source document.
 
 ## Editor Schema
 
-The Draft 2020-12 schema at [schemas/jsfl.schema.json](schemas/jsfl.schema.json) provides completion, documentation, and structural validation for JSFL YAML files in editors compatible with YAML Language Server.
+The Draft 2020-12 schema at [schemas/a-form.schema.json](schemas/a-form.schema.json) provides completion, documentation, and structural validation for AForm YAML files in editors compatible with YAML Language Server.
 
-Inside a JSFL document, `schema` exposes the JSON Schema Draft-07 keywords supported by RJSF's default AJV validator. `uiSchema` exposes the serializable RJSF 6.x options in both `ui:option` and `ui:options` forms, including recursive object fields, array `items`, `oneOf`/`anyOf`, global options, and UI definitions. Field names remain open because they are defined dynamically by `schema.properties`.
+Inside an AForm document, `schema` exposes the JSON Schema Draft-07 keywords supported by RJSF's default AJV validator. `uiSchema` exposes the serializable RJSF 6.x options in both `ui:option` and `ui:options` forms, including recursive object fields, array `items`, `oneOf`/`anyOf`, global options, and UI definitions. Field names remain open because they are defined dynamically by `schema.properties`.
 
 Other editors using YAML Language Server can opt in from the first line of a document:
 
 ```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/alansferreira/jsfl/main/schemas/jsfl.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/alansferreira/a-form/main/schemas/a-form.schema.json
 version: "1"
 ```
 
-The editor schema validates the JSFL document structure. Cross-references such as a layout field path existing under `schema.properties` remain semantic checks performed by `validateFormSpec` or `jsfl-language-service`.
+The editor schema validates the AForm document structure. Cross-references such as a layout field path existing under `schema.properties` remain semantic checks performed by `validateFormSpec`.
 
 ## Responsive by Specification
 
 The layout uses a 12-column grid. Choose which normalized span should be rendered through the `viewport` prop:
 
 ```tsx
-import type { NormalizedFormSpec } from "jsfl-core";
-import type { JSFLViewport } from "jsfl-react";
-import { JSFLForm } from "jsfl-react";
+import type { NormalizedFormSpec } from "a-form-core";
+import type { AFormViewport } from "a-form-react";
+import { AForm } from "a-form-react";
 import { useState } from "react";
 
 export function ResponsivePreview({ spec }: { spec: NormalizedFormSpec }) {
-  const [viewport, setViewport] = useState<JSFLViewport>("desktop");
+  const [viewport, setViewport] = useState<AFormViewport>("desktop");
 
   return (
     <>
       <select
         value={viewport}
-        onChange={(event) => setViewport(event.target.value as JSFLViewport)}
+        onChange={(event) => setViewport(event.target.value as AFormViewport)}
       >
         <option value="mobile">Mobile</option>
         <option value="tablet">Tablet</option>
         <option value="desktop">Desktop</option>
       </select>
 
-      <JSFLForm spec={spec} viewport={viewport} />
+      <AForm spec={spec} viewport={viewport} />
     </>
   );
 }
@@ -220,7 +242,7 @@ layout:
           - { type: field, path: person.name }
 ```
 
-Only fields referenced by the JSFL layout are rendered. Nested object paths such as `person.name` remain connected to their parent JSON Schema structure.
+Only fields referenced by the AForm layout are rendered. Nested object paths such as `person.name` remain connected to their parent JSON Schema structure.
 
 ## Own the Form State
 
@@ -231,7 +253,7 @@ const [registration, setRegistration] = useState<JsonObject>({
   person: { name: "", email: "" },
 });
 
-<JSFLForm
+<AForm
   spec={registrationSpec}
   value={registration}
   onChange={setRegistration}
@@ -250,11 +272,11 @@ const [registration, setRegistration] = useState<JsonObject>({
 Use the same component for editing, review screens, and temporarily unavailable workflows:
 
 ```tsx
-<JSFLForm spec={spec} readOnly submitLabel="Confirm" />
+<AForm spec={spec} readOnly submitLabel="Confirm" />
 
-<JSFLForm spec={spec} disabled submitLabel="Unavailable" />
+<AForm spec={spec} disabled submitLabel="Unavailable" />
 
-<JSFLForm
+<AForm
   spec={spec}
   className="checkout-form"
   noHtml5Validate
@@ -264,18 +286,18 @@ Use the same component for editing, review screens, and temporarily unavailable 
 
 ## Style Without Forking
 
-`JSFLForm` provides stable class hooks while RJSF continues to render native form controls:
+`AForm` provides stable class hooks while RJSF continues to render native form controls:
 
 ```css
-.checkout-form .jsfl-object-root {
+.checkout-form .a-form-object-root {
   gap: 1.25rem;
 }
 
-.checkout-form .jsfl-field {
+.checkout-form .a-form-field {
   min-width: 0;
 }
 
-.checkout-form .jsfl-label {
+.checkout-form .a-form-label {
   display: block;
   margin-bottom: 0.4rem;
   font-weight: 700;
@@ -288,7 +310,7 @@ Use the same component for editing, review screens, and temporarily unavailable 
   box-sizing: border-box;
 }
 
-.checkout-form .jsfl-submit {
+.checkout-form .a-form-submit {
   padding: 0.75rem 1rem;
   cursor: pointer;
 }
@@ -296,11 +318,11 @@ Use the same component for editing, review screens, and temporarily unavailable 
 
 Available hooks include:
 
-- `.jsfl-object-root`, `.jsfl-object-bridge`, `.jsfl-object-nested`
-- `.jsfl-field`, `.jsfl-layout-field`, `.jsfl-nested-field`
-- `.jsfl-label`, `.jsfl-required`, `.jsfl-submit`
-- `.jsfl-property`, `.jsfl-hidden-field`
-- `[data-jsfl-field="person.email"]` for path-specific styling
+- `.a-form-object-root`, `.a-form-object-bridge`, `.a-form-object-nested`
+- `.a-form-field`, `.a-form-layout-field`, `.a-form-nested-field`
+- `.a-form-label`, `.a-form-required`, `.a-form-submit`
+- `.a-form-property`, `.a-form-hidden-field`
+- `[data-a-form-field="person.email"]` for path-specific styling
 
 ## Component API
 
@@ -316,7 +338,7 @@ Available hooks include:
 | `readOnly` | `boolean` | `false` | Makes all controls read-only |
 | `noHtml5Validate` | `boolean` | `false` | Disables native browser validation UI |
 | `className` | `string` | `""` | Adds a class to the root form element |
-| `asyncValidation` | `JSFLAsyncValidationOptions` | - | Connects remote validation to change, blur, and submit |
+| `asyncValidation` | `AFormAsyncValidationOptions` | - | Connects remote validation to change, blur, and submit |
 
 ## Async Validation
 
@@ -337,11 +359,11 @@ validations:
 The host application registers `customer-api` and passes its engine to the component:
 
 ```tsx
-import { FetchAsyncValidationAdapter } from "jsfl-adapter-fetch";
+import { FetchAsyncValidationAdapter } from "a-form-adapter-fetch";
 import {
   AsyncValidationEngine,
   AsyncValidationRegistry,
-} from "jsfl-async-validation";
+} from "a-form-async-validation";
 
 const registry = new AsyncValidationRegistry();
 registry.register(new FetchAsyncValidationAdapter({
@@ -351,26 +373,25 @@ registry.register(new FetchAsyncValidationAdapter({
 
 const engine = new AsyncValidationEngine(registry);
 
-<JSFLForm
+<AForm
   spec={spec}
   asyncValidation={{ engine }}
   onSubmit={(data) => saveRegistration(data)}
 />;
 ```
 
-`JSFLForm` binds `change`, `blur`, and `submit` rules automatically. It applies change debounce, observes `dependsOn`, renders remote issues beside their fields, disables submit while work is pending, and forwards `onSubmit` only when every applicable result is non-blocking. Adapter configuration and credentials remain owned by the host application.
+`AForm` binds `change`, `blur`, and `submit` rules automatically. It applies change debounce, observes `dependsOn`, renders remote issues beside their fields, disables submit while work is pending, and forwards `onSubmit` only when every applicable result is non-blocking. Adapter configuration and credentials remain owned by the host application.
 
 ## Workspace Map
 
 | Package | Responsibility |
 | --- | --- |
-| [`jsfl-core`](packages/core/README.md) | Serializable contracts and normalized AST types |
-| [`jsfl-parser`](packages/parser/README.md) | YAML and Emmet parsing, semantic validation, and normalization |
-| [`jsfl-react`](packages/react/README.md) | Controlled React renderer powered by RJSF and AJV |
-| [`jsfl-language-service`](packages/language-service/README.md) | Editor-independent diagnostics, completion, and hover |
-| [`jsfl-async-validation`](packages/async-validation/README.md) | Remote validation registry and orchestration |
-| [`jsfl-adapter-fetch`](packages/adapter-fetch/README.md) | Runtime-configured HTTP validation adapter |
-| `jsfl-playground` | Interactive YAML editor and responsive React preview |
+| [`a-form-core`](packages/core/README.md) | Serializable contracts and normalized AST types |
+| [`a-form-parser`](packages/parser/README.md) | YAML and Emmet parsing, semantic validation, and normalization |
+| [`a-form-react`](packages/react/README.md) | Controlled React renderer powered by RJSF and AJV |
+| [`a-form-async-validation`](packages/async-validation/README.md) | Remote validation registry and orchestration |
+| [`a-form-adapter-fetch`](packages/adapter-fetch/README.md) | Runtime-configured HTTP validation adapter |
+| `a-form-playground` | Interactive YAML editor and responsive React preview |
 
 ## Development
 
@@ -384,12 +405,12 @@ npm run verify
 Run the interactive playground:
 
 ```bash
-npm run dev --workspace jsfl-playground
+npm run dev --workspace a-form-playground
 ```
 
 Run only the React package checks:
 
 ```bash
-npm run typecheck --workspace jsfl-react
-npm test -- --run packages/react/src/JSFLForm.test.tsx
+npm run typecheck --workspace a-form-react
+npm test -- --run packages/react/src/AForm.test.tsx
 ```

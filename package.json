@@ -1,5 +1,5 @@
 {
-  "name": "jsfl",
+  "name": "a-form",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,11 +11,14 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "version:bump": "lerna version --conventional-commits --force-publish",
     "test": "vitest run",
     "typecheck": "tsc -b",
     "verify": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
+    "conventional-changelog-conventionalcommits": "^9.1.0",
+    "lerna": "^9.0.7",
     "monaco-editor": "0.54.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

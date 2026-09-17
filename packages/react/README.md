@@ -1,31 +1,31 @@
-# jsfl-react
+# a-form-react
 
 **From normalized specification to responsive React form in one component.**
 
-`jsfl-react` renders JSFL Forms through RJSF and AJV. It connects JSON Schema validation, UI Schema hints, controlled React state, and a responsive 12-column layout through `JSFLForm`.
+`a-form-react` renders AForm through RJSF and AJV. It connects JSON Schema validation, UI Schema hints, controlled React state, and a responsive 12-column layout through `AForm`.
 
 ## Install
 
 ```bash
-npm install react react-dom jsfl-core jsfl-react
+npm install react react-dom a-form-core a-form-react
 ```
 
 React and React DOM 18 or newer are peer dependencies.
 
 ## Render a Form
 
-`JSFLForm` requires a `NormalizedFormSpec`, normally produced by `normalizeFormSpec` from `jsfl-parser`.
+`AForm` requires a `NormalizedFormSpec`, normally produced by `normalizeFormSpec` from `a-form-parser`.
 
 ```tsx
-import type { JsonObject, NormalizedFormSpec } from "jsfl-core";
-import { JSFLForm } from "jsfl-react";
+import type { JsonObject, NormalizedFormSpec } from "a-form-core";
+import { AForm } from "a-form-react";
 import { useState } from "react";
 
 export function RegistrationForm({ spec }: { spec: NormalizedFormSpec }) {
   const [value, setValue] = useState<JsonObject>({});
 
   return (
-    <JSFLForm
+    <AForm
       spec={spec}
       viewport="desktop"
       value={value}
@@ -40,13 +40,13 @@ export function RegistrationForm({ spec }: { spec: NormalizedFormSpec }) {
 ## Parse YAML and Render
 
 ```tsx
-import type { JsonObject } from "jsfl-core";
+import type { JsonObject } from "a-form-core";
 import {
   normalizeFormSpec,
   parseYamlSpec,
   validateFormSpec,
-} from "jsfl-parser";
-import { JSFLForm } from "jsfl-react";
+} from "a-form-parser";
+import { AForm } from "a-form-react";
 import { useState } from "react";
 
 export function FormFromYaml({ source }: { source: string }) {
@@ -61,7 +61,7 @@ export function FormFromYaml({ source }: { source: string }) {
   }
 
   return (
-    <JSFLForm
+    <AForm
       spec={normalizeFormSpec(parsed.value)}
       value={value}
       onChange={setValue}
@@ -84,19 +84,19 @@ export function FormFromYaml({ source }: { source: string }) {
 | `readOnly` | `boolean` | `false` | Makes the complete form read-only |
 | `noHtml5Validate` | `boolean` | `false` | Disables native browser validation UI |
 | `className` | `string` | `""` | Adds a class to the root form |
-| `asyncValidation` | `JSFLAsyncValidationOptions` | - | Connects an async validation engine and optional result observer |
+| `asyncValidation` | `AFormAsyncValidationOptions` | - | Connects an async validation engine and optional result observer |
 
 ## Async Validation
 
-Create the registry and engine in the host application, then pass the engine to `JSFLForm`. Adapter endpoints, credentials, and request mappings remain outside the form specification.
+Create the registry and engine in the host application, then pass the engine to `AForm`. Adapter endpoints, credentials, and request mappings remain outside the form specification.
 
 ```tsx
-import { FetchAsyncValidationAdapter } from "jsfl-adapter-fetch";
+import { FetchAsyncValidationAdapter } from "a-form-adapter-fetch";
 import {
   AsyncValidationEngine,
   AsyncValidationRegistry,
-} from "jsfl-async-validation";
-import { JSFLForm } from "jsfl-react";
+} from "a-form-async-validation";
+import { AForm } from "a-form-react";
 import { useState } from "react";
 
 const registry = new AsyncValidationRegistry();
@@ -115,7 +115,7 @@ export function RegistrationForm({ spec }: { spec: NormalizedFormSpec }) {
   const [value, setValue] = useState<JsonObject>({});
 
   return (
-    <JSFLForm
+    <AForm
       spec={spec}
       value={value}
       onChange={setValue}
@@ -155,7 +155,7 @@ The engine should belong to one live form instance. Create separate engines when
 `onResult` receives every completed, non-cancelled validation:
 
 ```ts
-interface JSFLAsyncValidationEvent {
+interface AFormAsyncValidationEvent {
   ruleId: string;
   fieldPath: string;
   trigger: "change" | "blur" | "submit" | "manual";
@@ -166,29 +166,29 @@ interface JSFLAsyncValidationEvent {
 ## Responsive Preview
 
 ```tsx
-import type { JSFLViewport } from "jsfl-react";
+import type { AFormViewport } from "a-form-react";
 
-const [viewport, setViewport] = useState<JSFLViewport>("mobile");
+const [viewport, setViewport] = useState<AFormViewport>("mobile");
 
-<JSFLForm spec={spec} viewport={viewport} />;
+<AForm spec={spec} viewport={viewport} />;
 ```
 
-The component applies the selected normalized span through CSS Grid. It renders only field paths present in the JSFL layout and uses CSS ordering to match layout order.
+The component applies the selected normalized span through CSS Grid. It renders only field paths present in the AForm layout and uses CSS ordering to match layout order.
 
 ## Styling Hooks
 
-Use `className` to scope your design and target the stable `jsfl-*` hooks:
+Use `className` to scope your design and target the stable `a-form-*` hooks:
 
 ```css
-.account-form .jsfl-object-root {
+.account-form .a-form-object-root {
   gap: 1rem;
 }
 
-.account-form .jsfl-field {
+.account-form .a-form-field {
   min-width: 0;
 }
 
-.account-form .jsfl-label {
+.account-form .a-form-label {
   display: block;
   margin-bottom: 0.4rem;
   font-weight: 700;
@@ -201,19 +201,19 @@ Use `className` to scope your design and target the stable `jsfl-*` hooks:
   box-sizing: border-box;
 }
 
-.account-form .jsfl-submit {
+.account-form .a-form-submit {
   padding: 0.75rem 1rem;
 }
 ```
 
-Public hooks include `.jsfl-object-root`, `.jsfl-object-bridge`, `.jsfl-object-nested`, `.jsfl-field`, `.jsfl-layout-field`, `.jsfl-nested-field`, `.jsfl-label`, `.jsfl-required`, `.jsfl-property`, `.jsfl-hidden-field`, and `.jsfl-submit`.
+Public hooks include `.a-form-object-root`, `.a-form-object-bridge`, `.a-form-object-nested`, `.a-form-field`, `.a-form-layout-field`, `.a-form-nested-field`, `.a-form-label`, `.a-form-required`, `.a-form-property`, `.a-form-hidden-field`, and `.a-form-submit`.
 
-Async state hooks include `.jsfl-async-status`, `.jsfl-async-issue`, `.jsfl-async-issue-error`, `.jsfl-async-issue-warning`, and `.jsfl-async-issue-info`.
+Async state hooks include `.a-form-async-status`, `.a-form-async-issue`, `.a-form-async-issue-error`, `.a-form-async-issue-warning`, and `.a-form-async-issue-info`.
 
 Target one field through its dotted path:
 
 ```css
-[data-jsfl-field="person.email"] {
+[data-a-form-field="person.email"] {
   grid-column: span 12;
 }
 ```

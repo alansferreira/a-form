@@ -5,7 +5,7 @@ import type {
   FormSpec,
   JsonObject,
   RowNode,
-} from "jsfl-core";
+} from "a-form-core";
 
 const VALID_TRIGGERS = new Set(["change", "blur", "submit", "manual"]);
 

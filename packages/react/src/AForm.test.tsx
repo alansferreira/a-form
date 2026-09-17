@@ -3,13 +3,13 @@
 import {
   AsyncValidationEngine,
   AsyncValidationRegistry,
-} from "jsfl-async-validation";
-import type { JsonObject, NormalizedFormSpec } from "jsfl-core";
+} from "a-form-async-validation";
+import type { JsonObject, NormalizedFormSpec } from "a-form-core";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { JSFLForm } from "./JSFLForm.js";
+import { AForm } from "./AForm.js";
 
 const actEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean };
 
@@ -54,16 +54,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("JSFLForm", () => {
-  it("renders only layout fields with the selected span and JSFL order", () => {
-    const html = renderToStaticMarkup(<JSFLForm spec={spec} viewport="desktop" />);
+describe("AForm", () => {
+  it("renders only layout fields with the selected span and AForm order", () => {
+    const html = renderToStaticMarkup(<AForm spec={spec} viewport="desktop" />);
 
     expect(html).not.toContain("name=\"root_ignored\"");
-    expect(html).toContain("data-jsfl-field=\"name\"");
-    expect(html).toContain("data-jsfl-field=\"email\"");
+    expect(html).toContain("data-a-form-field=\"name\"");
+    expect(html).toContain("data-a-form-field=\"email\"");
     expect(html).toContain("grid-column:span 4");
-    expect(html).toMatch(/data-jsfl-field="name" style="[^"]*order:0/);
-    expect(html).toMatch(/data-jsfl-field="email" style="[^"]*order:1/);
+    expect(html).toMatch(/data-a-form-field="name" style="[^"]*order:0/);
+    expect(html).toMatch(/data-a-form-field="email" style="[^"]*order:1/);
   });
 
   it("runs blur and submit validation, displays issues, and blocks invalid submit", async () => {
@@ -101,7 +101,7 @@ describe("JSFLForm", () => {
     function Harness() {
       const [value, setValue] = useState<JsonObject>({ email: "taken@example.com" });
       return (
-        <JSFLForm
+        <AForm
           spec={asyncSpec}
           value={value}
           asyncValidation={{ engine }}
@@ -172,7 +172,7 @@ describe("JSFLForm", () => {
     function Harness() {
       const [value, setValue] = useState<JsonObject>({ email: "hello@example.com", name: "BR" });
       return (
-        <JSFLForm
+        <AForm
           spec={asyncSpec}
           value={value}
           asyncValidation={{ engine }}
@@ -192,12 +192,12 @@ describe("JSFLForm", () => {
       nameInput!.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(validate).not.toHaveBeenCalled();
-    expect(container.querySelector<HTMLButtonElement>(".jsfl-submit")?.disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>(".a-form-submit")?.disabled).toBe(true);
 
     await act(async () => vi.advanceTimersByTimeAsync(50));
     expect(validate).toHaveBeenCalledTimes(1);
     expect(validate.mock.calls[0]![0].dependencyValues).toEqual({ name: "US" });
-    expect(container.querySelector<HTMLButtonElement>(".jsfl-submit")?.disabled).toBe(false);
+    expect(container.querySelector<HTMLButtonElement>(".a-form-submit")?.disabled).toBe(false);
 
     container.remove();
   });

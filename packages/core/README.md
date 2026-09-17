@@ -1,28 +1,28 @@
-# jsfl-core
+# a-form-core
 
-**The stable language shared by every JSFL Forms package.**
+**The stable language shared by every AForm package.**
 
-`jsfl-core` contains the serializable TypeScript contracts for form specifications, responsive layouts, diagnostics, normalized trees, and async validation rules. It has no runtime dependencies and no framework coupling.
+`a-form-core` contains the serializable TypeScript contracts for form specifications, responsive layouts, diagnostics, normalized trees, and async validation rules. It has no runtime dependencies and no framework coupling.
 
 ## Install
 
 ```bash
-npm install jsfl-core
+npm install a-form-core
 ```
 
 ## Use This Package When
 
-- You generate or store JSFL form specifications.
+- You generate or store AForm specifications.
 - You need shared types in an adapter, editor integration, or renderer.
 - You exchange form definitions across browser, server, worker, or build-time boundaries.
 - You want to create a normalized specification without importing React types.
 
-For YAML parsing and normalization, use `jsfl-parser`. For rendering, use `jsfl-react`.
+For YAML parsing and normalization, use `a-form-parser`. For rendering, use `a-form-react`.
 
 ## Define a Form Contract
 
 ```ts
-import type { FormSpec } from "jsfl-core";
+import type { FormSpec } from "a-form-core";
 
 const registration: FormSpec = {
   version: "1",
@@ -91,11 +91,10 @@ Missing values cascade during normalization: `mobile` defaults to `12`, `tablet`
 ## Package Relationships
 
 ```text
-jsfl-core
-  +-- jsfl-parser
-  +-- jsfl-react
-  +-- jsfl-async-validation
-  +-- jsfl-language-service
+a-form-core
+  +-- a-form-parser
+  +-- a-form-react
+  +-- a-form-async-validation
 ```
 
 ## Requirements

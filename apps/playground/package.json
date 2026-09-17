@@ -1,7 +1,7 @@
 {
-  "name": "jsfl-playground",
+  "name": "a-form-playground",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,9 +14,9 @@
     "@fontsource/manrope": "^5.3.0",
     "@fontsource/newsreader": "^5.3.0",
     "@monaco-editor/react": "^4.7.0",
-    "jsfl-core": "0.1.0",
-    "jsfl-parser": "0.1.0",
-    "jsfl-react": "0.1.0",
+    "a-form-core": "^0.1.4",
+    "a-form-parser": "^0.1.4",
+    "a-form-react": "^0.1.4",
     "lucide-react": "^0.544.0",
     "monaco-yaml": "^5.5.1",
     "react": "^19.2.8",
