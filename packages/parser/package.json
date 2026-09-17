@@ -1,7 +1,6 @@
 {
   "name": "a-form-parser",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.1.2",
   "type": "module",
   "exports": {
     ".": {
@@ -9,13 +8,15 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "a-form-core": "0.1.0",
+    "a-form-core": "^0.1.2",
     "yaml": "^2.8.1"
   }
 }
