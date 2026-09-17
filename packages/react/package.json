@@ -1,6 +1,6 @@
 {
   "name": "a-form-react",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "exports": {
     ".": {
@@ -19,8 +19,8 @@
     "@rjsf/core": "^6.10.0",
     "@rjsf/utils": "^6.10.0",
     "@rjsf/validator-ajv8": "^6.10.0",
-    "a-form-async-validation": "^0.1.4",
-    "a-form-core": "^0.1.4"
+    "a-form-async-validation": "^0.1.5",
+    "a-form-core": "^0.1.5"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
