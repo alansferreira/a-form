@@ -1,0 +1,7 @@
+#!/bin/bash
+
+npm publish ./packages/core
+npm publish ./packages/parser
+npm publish ./packages/async-validation
+npm publish ./packages/adapter-fetch
+npm publish ./packages/react
