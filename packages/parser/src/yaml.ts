@@ -1,4 +1,4 @@
-import type { Diagnostic, FormSpec, SourcePosition, SourceRange } from "jsfl-core";
+import type { Diagnostic, FormSpec, SourcePosition, SourceRange } from "a-form-core";
 import { LineCounter, parseDocument } from "yaml";
 
 const DEFAULT_MAX_SOURCE_LENGTH = 1_000_000;

@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/alansferreira/jsfl/main/schemas/jsfl.schema.json",
-  "title": "JSFL Form Specification",
-  "description": "A portable JSFL form definition combining JSON Schema, UI Schema, responsive layout, and asynchronous validation rules.",
+  "$id": "https://raw.githubusercontent.com/alansferreira/a-form/main/schemas/a-form.schema.json",
+  "title": "AForm Specification",
+  "description": "A portable AForm definition combining JSON Schema, UI Schema, responsive layout, and asynchronous validation rules.",
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "schema", "layout"],
   "properties": {
     "version": {
-      "description": "JSFL specification version.",
+      "description": "AForm specification version.",
       "const": "1"
     },
     "schema": {

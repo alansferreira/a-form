@@ -1,6 +1,6 @@
-import type { FormSpec, JsonObject, NormalizedFormSpec } from 'jsfl-core'
-import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'jsfl-parser'
-import { JSFLForm } from 'jsfl-react'
+import type { FormSpec, JsonObject, NormalizedFormSpec } from 'a-form-core'
+import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'a-form-parser'
+import { AForm } from 'a-form-react'
 import {
   AlignLeft,
   Braces,
@@ -109,7 +109,7 @@ function Preview({ spec, viewport }: { spec: NormalizedFormSpec; viewport: Viewp
           <h2>Untitled form</h2>
           <p>Generated from the current virtual grid.</p>
         </div>
-        <JSFLForm spec={spec} viewport={viewport} value={value} onChange={setValue} noHtml5Validate />
+        <AForm spec={spec} viewport={viewport} value={value} onChange={setValue} noHtml5Validate />
       </div>
     </div>
   )
@@ -139,7 +139,7 @@ export function BuilderApp() {
 
   const beginDrag = (event: React.DragEvent, payload: PalettePayload) => {
     event.dataTransfer.effectAllowed = payload.source === 'canvas' ? 'move' : 'copy'
-    event.dataTransfer.setData('application/x-jsfl-builder', JSON.stringify(payload))
+    event.dataTransfer.setData('application/x-a-form-builder', JSON.stringify(payload))
     setPendingPayload(payload)
   }
 
@@ -206,7 +206,7 @@ export function BuilderApp() {
 
   const dropOnRow = (event: React.DragEvent<HTMLDivElement>, rowId: string) => {
     event.preventDefault()
-    const rawPayload = event.dataTransfer.getData('application/x-jsfl-builder')
+    const rawPayload = event.dataTransfer.getData('application/x-a-form-builder')
     if (!rawPayload) return
     const rect = event.currentTarget.getBoundingClientRect()
     const slot = Math.max(0, Math.min(11, Math.floor(((event.clientX - rect.left) / rect.width) * 12)))
@@ -273,7 +273,7 @@ export function BuilderApp() {
       : parsed.diagnostics
     const error = diagnostics.find((diagnostic) => diagnostic.severity === 'error')
     if (!parsed.value || error) {
-      setNotice(`Could not import ${file.name}: ${error?.message ?? 'invalid JSFL spec.'}`)
+      setNotice(`Could not import ${file.name}: ${error?.message ?? 'invalid AForm spec.'}`)
       return
     }
 
@@ -308,7 +308,7 @@ export function BuilderApp() {
     const url = URL.createObjectURL(new Blob([specYaml], { type: 'text/yaml' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'form.jsfl.yaml'
+    anchor.download = 'form.a-form.yaml'
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -317,7 +317,7 @@ export function BuilderApp() {
     <main className="builder-shell">
       <header className="builder-topbar">
         <div className="builder-brand-mark"><Sparkles size={17} /></div>
-        <div className="builder-brand-copy"><strong>JSFL Builder</strong><span>Visual playground</span></div>
+        <div className="builder-brand-copy"><strong>AForm Builder</strong><span>Visual playground</span></div>
         <div className="builder-view-switch" aria-label="Builder view">
           <button className={view === 'design' ? 'active' : ''} type="button" onClick={() => setView('design')}><Rows3 size={15} /> Design</button>
           <button className={view === 'preview' ? 'active' : ''} type="button" onClick={() => setView('preview')}><Monitor size={15} /> Preview</button>
@@ -331,7 +331,7 @@ export function BuilderApp() {
       </header>
 
       <section className="builder-toolbar">
-        <span className="builder-breadcrumb"><Braces size={15} /> form.jsfl.yaml <ChevronRight size={13} /> layout</span>
+        <span className="builder-breadcrumb"><Braces size={15} /> form.a-form.yaml <ChevronRight size={13} /> layout</span>
         <span className="builder-notice">{pendingPayload ? `${pendingPayload.label} selected - click a grid slot` : notice}</span>
         <div className="builder-viewport-control" aria-label="Preview viewport">
           {viewports.map(({ id, label, icon: Icon }) => (
@@ -349,7 +349,7 @@ export function BuilderApp() {
               aria-label="Example YAML data"
               language="yaml"
               path="example-data.yaml"
-              theme="jsfl-dark"
+              theme="a-form-dark"
               value={dataSource}
               onChange={(value) => setDataSource(value ?? '')}
               options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 11, lineHeight: 18, minimap: { enabled: false }, padding: { top: 10 }, scrollBeyondLastLine: false, tabSize: 2 }}
@@ -472,10 +472,10 @@ export function BuilderApp() {
           {inspectorView === 'spec' ? (
             <div className="builder-spec-panel">
               <div className="builder-spec-actions">
-                <span>form.jsfl.yaml</span>
+                <span>form.a-form.yaml</span>
                 <button type="button" title="Copy YAML" aria-label="Copy YAML" onClick={copySpec}>{copied ? <Check size={14} /> : <Clipboard size={14} />}</button>
               </div>
-              <Editor aria-label="Generated JSFL YAML" language="yaml" path="generated-form.jsfl.yaml" theme="jsfl-dark" value={specYaml} options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 10, lineHeight: 17, minimap: { enabled: false }, padding: { top: 12 }, readOnly: true, scrollBeyondLastLine: false }} />
+              <Editor aria-label="Generated AForm YAML" language="yaml" path="generated-form.a-form.yaml" theme="a-form-dark" value={specYaml} options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 10, lineHeight: 17, minimap: { enabled: false }, padding: { top: 12 }, readOnly: true, scrollBeyondLastLine: false }} />
             </div>
           ) : selectedField ? (
             <div className="builder-properties">

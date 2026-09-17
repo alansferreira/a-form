@@ -37,23 +37,23 @@
 .form-heading span { color: var(--rust); font: 700 10px var(--mono); }
 .form-heading h2 { margin: 8px 0 5px; color: var(--ink); font: 700 28px/1.1 var(--display); letter-spacing: 0; }
 .form-heading p { margin: 0; color: var(--muted); font-size: 12px; }
-.jsfl-object-root { gap: 0 16px !important; }
-.jsfl-object-nested { padding: 12px; border-left: 2px solid var(--line-strong); }
-.jsfl-object-nested > legend, .jsfl-object-nested > .field-description { display: block; margin-bottom: 8px; }
-.jsfl-property, .jsfl-hidden-field { min-width: 0; }
-.jsfl-field { position: relative; display: flex; flex-direction: column; min-width: 0; margin-bottom: 18px; }
-.jsfl-field .jsfl-label, .jsfl-field legend { color: var(--ink); font-size: 11px; font-weight: 800; margin-bottom: 7px; }
-.jsfl-field input, .jsfl-field select, .jsfl-field textarea { width: 100%; box-sizing: border-box; border: 1px solid #bbbfb8; border-radius: 3px; outline: 0; padding: 10px 11px; color: var(--ink); background: #fff; font: 13px var(--sans); }
-.jsfl-field input:focus, .jsfl-field select:focus, .jsfl-field textarea:focus { border-color: var(--rust); box-shadow: 0 0 0 2px var(--rust-soft); }
-.jsfl-field input[type='checkbox'], .jsfl-field input[type='radio'] { width: auto; margin: 0 7px 0 0; accent-color: var(--rust); }
-.jsfl-field .checkbox label, .jsfl-field .radio label { display: flex; align-items: center; margin: 7px 0; color: var(--ink); font-size: 12px; }
-.jsfl-field .field-description, .jsfl-field .help-block { margin: 0 0 7px; color: var(--muted); font-size: 10px; }
-.jsfl-field .error-detail { margin: 5px 0 0; padding-left: 16px; color: var(--rust); font-size: 10px; }
+.a-form-object-root { gap: 0 16px !important; }
+.a-form-object-nested { padding: 12px; border-left: 2px solid var(--line-strong); }
+.a-form-object-nested > legend, .a-form-object-nested > .field-description { display: block; margin-bottom: 8px; }
+.a-form-property, .a-form-hidden-field { min-width: 0; }
+.a-form-field { position: relative; display: flex; flex-direction: column; min-width: 0; margin-bottom: 18px; }
+.a-form-field .a-form-label, .a-form-field legend { color: var(--ink); font-size: 11px; font-weight: 800; margin-bottom: 7px; }
+.a-form-field input, .a-form-field select, .a-form-field textarea { width: 100%; box-sizing: border-box; border: 1px solid #bbbfb8; border-radius: 3px; outline: 0; padding: 10px 11px; color: var(--ink); background: #fff; font: 13px var(--sans); }
+.a-form-field input:focus, .a-form-field select:focus, .a-form-field textarea:focus { border-color: var(--rust); box-shadow: 0 0 0 2px var(--rust-soft); }
+.a-form-field input[type='checkbox'], .a-form-field input[type='radio'] { width: auto; margin: 0 7px 0 0; accent-color: var(--rust); }
+.a-form-field .checkbox label, .a-form-field .radio label { display: flex; align-items: center; margin: 7px 0; color: var(--ink); font-size: 12px; }
+.a-form-field .field-description, .a-form-field .help-block { margin: 0 0 7px; color: var(--muted); font-size: 10px; }
+.a-form-field .error-detail { margin: 5px 0 0; padding-left: 16px; color: var(--rust); font-size: 10px; }
 .field-path { margin-top: 4px; color: #969b95; font: 9px var(--mono); }
 .field-state { position: absolute; right: 0; top: 0; color: var(--muted); font: 8px var(--mono); text-transform: uppercase; }
-.jsfl-required { color: var(--rust); }
+.a-form-required { color: var(--rust); }
 .rjsf-add-property { align-self: start; border: 1px solid var(--line-strong); border-radius: 3px; background: #fff; }
-.jsfl-submit { border: 0; border-radius: 3px; padding: 11px 18px; color: #fff; background: var(--ink); font: 700 12px var(--sans); cursor: pointer; }
+.a-form-submit { border: 0; border-radius: 3px; padding: 11px 18px; color: #fff; background: var(--ink); font: 700 12px var(--sans); cursor: pointer; }
 .preview-error { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--rust); text-align: center; }
 .preview-error strong { margin: 10px 0 3px; color: var(--ink); font-size: 13px; }
 .preview-error span { color: var(--muted); font-size: 11px; }

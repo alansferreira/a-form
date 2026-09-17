@@ -1,4 +1,4 @@
-import type { AsyncValidationRuleSpec } from "jsfl-core";
+import type { AsyncValidationRuleSpec } from "a-form-core";
 import { describe, expect, it, vi } from "vitest";
 import { AsyncValidationEngine, AsyncValidationRegistry } from "./index.js";
 

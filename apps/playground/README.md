@@ -1,6 +1,6 @@
-# JSFL Visual Builder
+# AForm Visual Builder
 
-Visual playground for composing JSFL forms on a 12-column grid.
+Visual playground for composing forms with AForm on a 12-column grid.
 
 ## Features
 
@@ -8,20 +8,20 @@ Visual playground for composing JSFL forms on a 12-column grid.
 - Drag field templates including text, email, number, textarea, checkbox, radio, and select.
 - Drag by the grip handle on touch devices; the canvas highlights the row and column under the pointer and scrolls automatically near viewport edges.
 - Reorder fields between rows and adjust desktop/tablet column spans.
-- Inspect and export the generated JSFL YAML specification.
+- Inspect and export the generated AForm YAML specification.
 - Preview the generated form at mobile, tablet, and desktop widths.
 - Use click-to-select followed by a grid-slot click as a touch-friendly alternative to dragging.
 
 ## Development
 
 ```bash
-npm run dev --workspace jsfl-playground
+npm run dev --workspace a-form-playground
 ```
 
 ## Offline build
 
 ```bash
-npm run build --workspace jsfl-playground
+npm run build --workspace a-form-playground
 ```
 
 The build produces a self-contained `dist/index.html` with scripts, styles, fonts, and Monaco workers embedded. It can be opened directly using `file://` without an HTTP server.

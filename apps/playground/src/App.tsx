@@ -2,13 +2,13 @@ import type {
   Diagnostic,
   JsonObject,
   NormalizedFormSpec,
-} from 'jsfl-core'
+} from 'a-form-core'
 import {
   normalizeFormSpec,
   parseYamlSpec,
   validateFormSpec,
-} from 'jsfl-parser'
-import { JSFLForm } from 'jsfl-react'
+} from 'a-form-parser'
+import { AForm } from 'a-form-react'
 import {
   Check,
   Clipboard,
@@ -138,9 +138,9 @@ function FormPreview({ spec, viewport }: { spec: NormalizedFormSpec; viewport: V
         <div className="form-heading">
           <span>YF / 01</span>
           <h2>{title}</h2>
-          <p>RJSF widgets arranged by the normalized JSFL layout.</p>
+          <p>RJSF widgets arranged by the normalized AForm layout.</p>
         </div>
-        <JSFLForm
+        <AForm
           key={viewport}
           spec={spec}
           viewport={viewport}
@@ -204,7 +204,7 @@ function App() {
       <header className="topbar">
         <div className="brand-mark"><Sparkles size={17} /></div>
         <div className="brand-copy">
-          <strong>JSFL Forms</strong>
+          <strong>AForm</strong>
           <span>Playground</span>
         </div>
         <div className="topbar-actions">
@@ -212,7 +212,7 @@ function App() {
             {diagnostics.length ? <TriangleAlert size={14} /> : <Check size={14} />}
             {diagnostics.length ? `${diagnostics.length} issue${diagnostics.length === 1 ? '' : 's'}` : 'Valid schema'}
           </span>
-          <a href="https://github.com/alansferreira/jsfl-forms" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/alansferreira/a-form" target="_blank" rel="noreferrer">GitHub</a>
         </div>
       </header>
 
@@ -251,8 +251,8 @@ function App() {
             <Editor
               aria-label="YAML schema editor"
               language="yaml"
-              path="form.jsfl.yaml"
-              theme="jsfl-dark"
+              path="form.a-form.yaml"
+              theme="a-form-dark"
               value={source}
               onChange={(value) => setSource(value ?? '')}
               options={{
@@ -293,7 +293,7 @@ function App() {
                   aria-label="Normalized JSON AST"
                   language="json"
                   path="normalized-ast.json"
-                  theme="jsfl-dark"
+                  theme="a-form-dark"
                   value={normalized ? JSON.stringify(normalized, null, 2) : '// Waiting for a valid schema'}
                   options={{
                     automaticLayout: true,

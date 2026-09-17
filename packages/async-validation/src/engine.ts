@@ -1,4 +1,4 @@
-import type { AsyncValidationRuleSpec, JsonValue } from "jsfl-core";
+import type { AsyncValidationRuleSpec, JsonValue } from "a-form-core";
 import type {
   AsyncValidationAdapterResponse,
   AsyncValidationIssue,

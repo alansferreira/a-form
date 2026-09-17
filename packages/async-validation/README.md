@@ -1,13 +1,13 @@
-# jsfl-async-validation
+# a-form-async-validation
 
 **Remote validation with cancellation, caching, timeouts, and explicit failure policy.**
 
-`jsfl-async-validation` is the transport-neutral runtime for JSFL async rules. Register adapters once, create an engine per form instance, and run rules from the lifecycle events owned by your UI.
+`a-form-async-validation` is the transport-neutral runtime for AForm async rules. Register adapters once, create an engine per form instance, and run rules from the lifecycle events owned by your UI.
 
 ## Install
 
 ```bash
-npm install jsfl-core jsfl-async-validation
+npm install a-form-core a-form-async-validation
 ```
 
 ## Register an Adapter
@@ -17,7 +17,7 @@ import {
   AsyncValidationEngine,
   AsyncValidationRegistry,
   type AsyncValidationAdapter,
-} from "jsfl-async-validation";
+} from "a-form-async-validation";
 
 const emailAdapter: AsyncValidationAdapter = {
   id: "customer-api",
@@ -43,7 +43,7 @@ Registering the same adapter ID twice throws. The function returned by `register
 ## Run a Rule
 
 ```ts
-import type { AsyncValidationRuleSpec, JsonObject } from "jsfl-core";
+import type { AsyncValidationRuleSpec, JsonObject } from "a-form-core";
 
 const rule: AsyncValidationRuleSpec = {
   id: "email-available",
@@ -114,4 +114,4 @@ unregister();
 
 ## Bring Your Own Transport
 
-Implement `AsyncValidationAdapter` directly for GraphQL, RPC, local workers, or platform APIs. For standard HTTP POST validation, use `jsfl-adapter-fetch`.
+Implement `AsyncValidationAdapter` directly for GraphQL, RPC, local workers, or platform APIs. For standard HTTP POST validation, use `a-form-adapter-fetch`.

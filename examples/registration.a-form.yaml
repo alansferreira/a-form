@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../schemas/jsfl.schema.json
+# yaml-language-server: $schema=../schemas/a-form.schema.json
 version: "1"
 schema:
   $schema: https://json-schema.org/draft/2020-12/schema

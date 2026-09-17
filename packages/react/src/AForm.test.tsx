@@ -9,7 +9,7 @@ import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { JSFLForm } from "./JSFLForm.js";
+import { AForm } from "./AForm.js";
 
 const actEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean };
 
@@ -56,7 +56,7 @@ afterEach(() => {
 
 describe("AForm", () => {
   it("renders only layout fields with the selected span and AForm order", () => {
-    const html = renderToStaticMarkup(<JSFLForm spec={spec} viewport="desktop" />);
+    const html = renderToStaticMarkup(<AForm spec={spec} viewport="desktop" />);
 
     expect(html).not.toContain("name=\"root_ignored\"");
     expect(html).toContain("data-a-form-field=\"name\"");
@@ -101,7 +101,7 @@ describe("AForm", () => {
     function Harness() {
       const [value, setValue] = useState<JsonObject>({ email: "taken@example.com" });
       return (
-        <JSFLForm
+        <AForm
           spec={asyncSpec}
           value={value}
           asyncValidation={{ engine }}
@@ -172,7 +172,7 @@ describe("AForm", () => {
     function Harness() {
       const [value, setValue] = useState<JsonObject>({ email: "hello@example.com", name: "BR" });
       return (
-        <JSFLForm
+        <AForm
           spec={asyncSpec}
           value={value}
           asyncValidation={{ engine }}

@@ -1,4 +1,4 @@
-import type { FormSpec, JsonObject, JsonValue } from 'jsfl-core'
+import type { FormSpec, JsonObject, JsonValue } from 'a-form-core'
 import { parse, stringify } from 'yaml'
 
 export type FieldKind = 'text' | 'email' | 'number' | 'textarea' | 'checkbox' | 'radio' | 'select'

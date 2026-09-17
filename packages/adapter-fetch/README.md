@@ -1,23 +1,23 @@
-# jsfl-adapter-fetch
+# a-form-adapter-fetch
 
-**Connect JSFL async validation to any HTTP endpoint.**
+**Connect AForm async validation to any HTTP endpoint.**
 
-`jsfl-adapter-fetch` provides a Fetch API implementation of `AsyncValidationAdapter`. It supports dynamic headers, custom request mapping, custom response mapping, injectable `fetch`, and request cancellation.
+`a-form-adapter-fetch` provides a Fetch API implementation of `AsyncValidationAdapter`. It supports dynamic headers, custom request mapping, custom response mapping, injectable `fetch`, and request cancellation.
 
 ## Install
 
 ```bash
-npm install jsfl-async-validation jsfl-adapter-fetch
+npm install a-form-async-validation a-form-adapter-fetch
 ```
 
 ## Create and Register an Adapter
 
 ```ts
-import { FetchAsyncValidationAdapter } from "jsfl-adapter-fetch";
+import { FetchAsyncValidationAdapter } from "a-form-adapter-fetch";
 import {
   AsyncValidationEngine,
   AsyncValidationRegistry,
-} from "jsfl-async-validation";
+} from "a-form-async-validation";
 
 const registry = new AsyncValidationRegistry();
 
@@ -101,7 +101,7 @@ const adapter = new FetchAsyncValidationAdapter({
 
 | Option | Required | Purpose |
 | --- | --- | --- |
-| `id` | Yes | Registry identifier referenced by JSFL rules |
+| `id` | Yes | Registry identifier referenced by AForm rules |
 | `endpoint` | Yes | Validation endpoint URL |
 | `fetch` | No | Custom Fetch API implementation |
 | `headers` | No | Per-request header factory with a sync or async result |
@@ -115,4 +115,4 @@ const adapter = new FetchAsyncValidationAdapter({
 - CORS policy is controlled by your endpoint and browser environment.
 - Header factories execute for every request; cache expensive token work outside the adapter.
 - Response payloads are trusted after mapping. Validate untrusted response shapes inside `mapResponse` when needed.
-- Credentials and endpoints belong in application configuration, never in a JSFL specification.
+- Credentials and endpoints belong in application configuration, never in an AForm specification.

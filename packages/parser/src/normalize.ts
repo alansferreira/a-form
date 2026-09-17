@@ -8,7 +8,7 @@ import type {
   NormalizedRowNode,
   ResponsiveSpan,
   RowNode,
-} from "jsfl-core";
+} from "a-form-core";
 
 function normalizeSpan(span: ResponsiveSpan | number | undefined): NormalizedResponsiveSpan {
   const responsive = typeof span === "number" ? { mobile: span } : span;

@@ -1,13 +1,13 @@
-# jsfl-parser
+# a-form-parser
 
-**Turn human-friendly form definitions into trusted JSFL contracts.**
+**Turn human-friendly form definitions into trusted AForm contracts.**
 
-`jsfl-parser` parses strict YAML and compact Emmet-like layouts, reports source-aware diagnostics, validates form semantics, and produces the normalized specification expected by renderers.
+`a-form-parser` parses strict YAML and compact Emmet-like layouts, reports source-aware diagnostics, validates form semantics, and produces the normalized specification expected by renderers.
 
 ## Install
 
 ```bash
-npm install jsfl-core jsfl-parser
+npm install a-form-core a-form-parser
 ```
 
 ## The Complete Pipeline
@@ -17,7 +17,7 @@ import {
   normalizeFormSpec,
   parseYamlSpec,
   validateFormSpec,
-} from "jsfl-parser";
+} from "a-form-parser";
 
 const parsed = parseYamlSpec(yamlSource);
 
@@ -82,7 +82,7 @@ Returns a `NormalizedFormSpec` with deterministic fallback IDs and complete `mob
 ```ts
 const normalized = normalizeFormSpec(spec);
 
-// Ready for <JSFLForm spec={normalized} />
+// Ready for <AForm spec={normalized} />
 ```
 
 ### `parseEmmetLayout(source)`
@@ -90,7 +90,7 @@ const normalized = normalizeFormSpec(spec);
 Parses a compact layout expression into `RowNode[]`:
 
 ```ts
-import { parseEmmetLayout } from "jsfl-parser";
+import { parseEmmetLayout } from "a-form-parser";
 
 const result = parseEmmetLayout(
   "row>(col[mobile=12 tablet=6]>field[path=person.name])" +
@@ -127,6 +127,5 @@ Diagnostic code families include `YF_PARSE_*`, `YF_SPEC_*`, `YF_LAYOUT_*`, `YF_F
 
 ## Works With
 
-- `jsfl-react` for rendering normalized specs
-- `jsfl-language-service` for editor diagnostics, completion, and hover
-- `jsfl-core` for all public data contracts
+- `a-form-react` for rendering normalized specs
+- `a-form-core` for all public data contracts
