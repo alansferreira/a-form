@@ -4,6 +4,8 @@
 
 `a-form-parser` parses strict YAML and compact Emmet-like layouts, reports source-aware diagnostics, validates form semantics, and produces the normalized specification expected by renderers.
 
+[Open the AForm Playground](https://alansferreira.github.io/a-form/) to edit YAML and inspect the parsed form interactively.
+
 ## Install
 
 ```bash

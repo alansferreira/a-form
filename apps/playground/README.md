@@ -2,6 +2,8 @@
 
 Visual playground for composing forms with AForm on a 12-column grid.
 
+[Open the published AForm Playground](https://alansferreira.github.io/a-form/).
+
 ## Features
 
 - Drag leaf nodes from editable YAML example data. Each node exposes a simple absolute path such as `$.customer.email`.

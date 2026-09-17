@@ -4,6 +4,8 @@
 
 `a-form-core` contains the serializable TypeScript contracts for form specifications, responsive layouts, diagnostics, normalized trees, and async validation rules. It has no runtime dependencies and no framework coupling.
 
+[Open the AForm Playground](https://alansferreira.github.io/a-form/) to explore these contracts in a visual form builder.
+
 ## Install
 
 ```bash

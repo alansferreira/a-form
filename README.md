@@ -6,6 +6,8 @@ AForm turns a portable YAML specification into a responsive React form. Keep dat
 
 The result is one declarative form contract that can be parsed, validated, inspected by editor tooling, and rendered with `AForm`.
 
+[Open the AForm Playground](https://alansferreira.github.io/a-form/) to build, edit, and preview a form in the browser.
+
 ## Why AForm?
 
 - **Schema-first by design.** Use standard JSON Schema for data shape and validation.

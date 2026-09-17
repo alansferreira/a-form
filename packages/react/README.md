@@ -4,6 +4,8 @@
 
 `a-form-react` renders AForm through RJSF and AJV. It connects JSON Schema validation, UI Schema hints, controlled React state, and a responsive 12-column layout through `AForm`.
 
+[Open the AForm Playground](https://alansferreira.github.io/a-form/) to preview the React renderer at mobile, tablet, and desktop widths.
+
 ## Install
 
 ```bash

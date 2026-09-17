@@ -4,6 +4,8 @@
 
 `a-form-adapter-fetch` provides a Fetch API implementation of `AsyncValidationAdapter`. It supports dynamic headers, custom request mapping, custom response mapping, injectable `fetch`, and request cancellation.
 
+[Open the AForm Playground](https://alansferreira.github.io/a-form/) to compose and preview AForm specifications in the browser.
+
 ## Install
 
 ```bash

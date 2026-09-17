@@ -4,6 +4,8 @@
 
 `a-form-async-validation` is the transport-neutral runtime for AForm async rules. Register adapters once, create an engine per form instance, and run rules from the lifecycle events owned by your UI.
 
+[Open the AForm Playground](https://alansferreira.github.io/a-form/) to compose and preview AForm specifications in the browser.
+
 ## Install
 
 ```bash
