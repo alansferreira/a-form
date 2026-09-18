@@ -22,8 +22,6 @@ import {
   Monitor,
   Palette,
   Plus,
-  Play,
-  RotateCcw,
   Rows3,
   Settings2,
   Smartphone,
@@ -287,17 +285,6 @@ export function BuilderApp() {
     setSelectedFieldId('')
   }
 
-  const reset = () => {
-    fieldSequence.current = 4
-    rowSequence.current = 3
-    setRows(initialRows)
-    setBaseSpec(undefined)
-    setDataSource(exampleData)
-    setSelectedFieldId('field-1')
-    setPendingPayload(undefined)
-    setNotice('Builder reset to the starter layout.')
-  }
-
   const readImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0]
     event.currentTarget.value = ''
@@ -402,8 +389,6 @@ export function BuilderApp() {
         <div className="builder-top-actions">
           <input ref={importInput} type="file" accept=".yaml,.yml,.json,text/yaml,application/yaml,application/json" hidden onChange={readImportFile} />
           <button type="button" onClick={() => setImportOpen(true)}><Upload size={15} /> YAML Import / Export</button>
-          <button className="builder-icon-action" type="button" title="Reset builder" aria-label="Reset builder" onClick={reset}><RotateCcw size={15} /></button>
-          <button className="builder-run-action" type="button" onClick={() => selectView('preview')}><Play size={15} /> Run Preview</button>
         </div>
       </header>
 
@@ -610,7 +595,9 @@ export function BuilderApp() {
             </div>
             <div className="builder-import-body">
               <label htmlFor="import-source">schema_import.yaml</label>
-              <textarea id="import-source" spellCheck={false} value={importSource} onChange={(event) => setImportSource(event.target.value)} />
+              <div className="builder-import-editor">
+                <Editor aria-label="Import AForm YAML Spec" language="yaml" path="playground-v2-form.a-form.yaml" theme="a-form-dark" value={importSource} onChange={(value) => setImportSource(value || '')} options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }} />
+              </div>
               <fieldset>
                 <legend>Import mode</legend>
                 <label className={importMode === 'replace' ? 'selected' : ''}><input type="radio" name="import-mode" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} /><span><strong>Replace current schema</strong><small>Clear mapped fields and rebuild the form.</small></span></label>

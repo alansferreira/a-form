@@ -235,8 +235,7 @@ body.builder-touch-dragging { user-select: none; overscroll-behavior: none; }
 .builder-import-tools em { display: flex; align-items: center; gap: 4px; margin-left: auto; color: var(--green); font: normal 9px var(--mono); }
 .builder-import-body { padding: 14px 18px 18px; }
 .builder-import-body > label, .builder-import-body legend { color: var(--muted); font: 600 9px var(--mono); text-transform: uppercase; }
-.builder-import-body textarea { width: 100%; min-height: 190px; resize: vertical; margin: 6px 0 16px; padding: 12px; color: #4edea3; border: 1px solid var(--line-strong); border-radius: 5px; outline: 0; background: #060e20; font: 11px/1.7 var(--mono); }
-.builder-import-body textarea:focus { border-color: var(--rust); }
+.builder-import-editor { width: 100%; min-width: 0; height: clamp(190px, 32svh, 300px); margin: 6px 0 16px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 5px; background: #060e20; }
 .builder-import-body fieldset { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0; padding: 0; border: 0; }
 .builder-import-body legend { grid-column: 1 / -1; margin-bottom: 7px; }
 .builder-import-body fieldset label { display: flex; gap: 8px; padding: 11px; color: var(--text); border: 1px solid var(--line-strong); border-radius: 5px; background: var(--darkest); cursor: pointer; }
@@ -447,8 +446,7 @@ body.builder-touch-dragging { user-select: none; overscroll-behavior: none; }
 .builder-import-tools span, .builder-import-tools button { color: #121212; border: 2px solid #121212; border-radius: 0; background: #fff; }
 .builder-import-tools em { color: #121212; background: #00d084; }
 .builder-import-body > label, .builder-import-body legend { color: #121212; font-weight: 800; }
-.builder-import-body textarea { color: #121212; border: 2px solid #121212; border-radius: 0; background: #fff; box-shadow: 3px 3px 0 #121212; }
-.builder-import-body textarea:focus { border-color: #121212; box-shadow: 3px 3px 0 #ffe600; }
+.builder-import-editor { border: 2px solid #121212; border-radius: 0; background: #121212; box-shadow: 3px 3px 0 #121212; }
 .builder-import-body fieldset label { color: #121212; border: 2px solid #121212; border-radius: 0; background: #fff; box-shadow: 2px 2px 0 #121212; }
 .builder-import-body fieldset label.selected { border-color: #121212; background: #ffe600; }
 .builder-import-body fieldset strong { color: #121212; }
