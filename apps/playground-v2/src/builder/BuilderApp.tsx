@@ -82,6 +82,7 @@ const initialRows: readonly BuilderRow[] = [
 
 type BuilderView = 'design' | 'code' | 'preview'
 type InspectorView = 'properties' | 'spec'
+type SourceView = 'data' | 'fields'
 type Viewport = 'mobile' | 'tablet' | 'desktop'
 type ImportMode = 'replace' | 'merge'
 
@@ -137,6 +138,7 @@ export function BuilderApp() {
   const [pendingPayload, setPendingPayload] = useState<PalettePayload>()
   const [view, setView] = useState<BuilderView>('design')
   const [inspectorView, setInspectorView] = useState<InspectorView>('properties')
+  const [sourceView, setSourceView] = useState<SourceView>('fields')
   const [viewport, setViewport] = useState<Viewport>('desktop')
   const [notice, setNotice] = useState('Drag a source into any available grid slot.')
   const [copied, setCopied] = useState(false)
@@ -154,6 +156,7 @@ export function BuilderApp() {
   const normalized = normalizeFormSpec(spec)
   const specYaml = formSpecToYaml(rows, baseSpec)
   const selectedField = rows.flatMap((row) => row.fields).find((field) => field.id === selectedFieldId)
+  const placedPaths = new Set(rows.flatMap((row) => row.fields.map((field) => field.path)))
 
   const selectView = (nextView: BuilderView) => {
     if (nextView === 'code') setCodeDraft(specYaml)
@@ -407,46 +410,54 @@ export function BuilderApp() {
 
       <section className="builder-workspace">
         <aside className="builder-sources">
-          <div className="builder-panel-heading"><div><Database size={15} /><strong>Data source</strong></div><span>YAML</span></div>
-          <div className="builder-data-editor">
-            <Editor
-              aria-label="Example YAML data"
-              language="yaml"
-              path="example-data.yaml"
-              theme="a-form-dark"
-              value={dataSource}
-              onChange={(value) => setDataSource(value ?? '')}
-              options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 11, lineHeight: 18, minimap: { enabled: false }, padding: { top: 10 }, scrollBeyondLastLine: false, tabSize: 2 }}
-            />
+          <div className="builder-source-tabs" aria-label="Source view">
+            <button className={sourceView === 'data' ? 'active' : ''} type="button" onClick={() => setSourceView('data')}><Database size={14} /> Data Source</button>
+            <button className={sourceView === 'fields' ? 'active' : ''} type="button" onClick={() => setSourceView('fields')}><List size={14} /> Available fields <small>{dataPaths.filter((node) => !node.branch).length}</small></button>
           </div>
-          <div className="builder-source-section">
-            <div className="builder-section-label"><span>Available paths</span><small>{dataPaths.filter((node) => !node.branch).length}</small></div>
-            {parsedData.error ? <p className="builder-data-error">{parsedData.error}</p> : (
-              <div className="builder-data-tree">
-                {dataPaths.map((node) => {
-                  const kind = inferFieldKind(node.jsonPath, node.value)
-                  const Icon = kindIcons[kind]
-                  const payload: PalettePayload = { source: 'data', path: internalPath(node.jsonPath), jsonPath: node.jsonPath, label: node.label, kind, sampleValue: node.value }
-                  return node.branch ? (
-                    <div className="builder-tree-group" key={node.jsonPath} style={{ paddingLeft: node.depth * 12 }}><ChevronRight size={12} /><span>{node.label}</span></div>
-                  ) : (
-                    <button
-                      className={`builder-tree-leaf ${pendingPayload && payloadKey(pendingPayload) === node.jsonPath ? 'selected' : ''}`}
-                      draggable
-                      key={node.jsonPath}
-                      style={{ paddingLeft: 12 + node.depth * 12 }}
-                      type="button"
-                      onClick={() => setPendingPayload(payload)}
-                      onDragStart={(event) => beginDrag(event, payload)}
-                      title={`Drag ${node.jsonPath}`}
-                    >
-                      <Icon size={13} /><span>{node.label}<small>{node.jsonPath}</small></span><span className="builder-touch-handle" {...bindTouchHandle(payload)}><GripVertical size={13} /></span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          {sourceView === 'data' ? (
+            <div className="builder-data-editor">
+              <Editor
+                aria-label="Example YAML data"
+                language="yaml"
+                path="example-data.yaml"
+                theme="a-form-dark"
+                value={dataSource}
+                onChange={(value) => setDataSource(value ?? '')}
+                options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 11, lineHeight: 18, minimap: { enabled: false }, padding: { top: 10 }, scrollBeyondLastLine: false, tabSize: 2 }}
+              />
+            </div>
+          ) : (
+            <div className="builder-source-section">
+              <div className="builder-section-label"><span>Schema fields</span><small>{dataPaths.filter((node) => !node.branch).length}</small></div>
+              {parsedData.error ? <p className="builder-data-error">{parsedData.error}</p> : (
+                <div className="builder-data-tree">
+                  {dataPaths.map((node) => {
+                    const kind = inferFieldKind(node.jsonPath, node.value)
+                    const Icon = kindIcons[kind]
+                    const payload: PalettePayload = { source: 'data', path: internalPath(node.jsonPath), jsonPath: node.jsonPath, label: node.label, kind, sampleValue: node.value }
+                    const isPlaced = placedPaths.has(internalPath(node.jsonPath))
+                    return node.branch ? (
+                      <div className="builder-tree-group" key={node.jsonPath} style={{ paddingLeft: node.depth * 12 }}><ChevronRight size={12} /><span>{node.label}</span></div>
+                    ) : (
+                      <button
+                        className={`builder-tree-leaf ${isPlaced ? 'placed' : pendingPayload && payloadKey(pendingPayload) === node.jsonPath ? 'selected' : ''}`}
+                        disabled={isPlaced}
+                        draggable={!isPlaced}
+                        key={node.jsonPath}
+                        style={{ paddingLeft: 12 + node.depth * 12 }}
+                        type="button"
+                        onClick={() => !isPlaced && setPendingPayload(payload)}
+                        onDragStart={(event) => !isPlaced && beginDrag(event, payload)}
+                        title={isPlaced ? `${node.jsonPath} is already in the form` : `Drag ${node.jsonPath}`}
+                      >
+                        <Icon size={13} /><span>{node.label}<small>{node.jsonPath}</small></span>{isPlaced ? <em><Check size={11} /> Added</em> : <span className="builder-touch-handle" {...bindTouchHandle(payload)}><GripVertical size={13} /></span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           <div className="builder-source-section builder-field-source">
             <div className="builder-section-label"><span>Field types</span><small>{FIELD_KINDS.length}</small></div>
             <div className="builder-field-palette">
