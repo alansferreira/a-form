@@ -330,6 +330,8 @@ body.builder-touch-dragging { user-select: none; overscroll-behavior: none; }
 .builder-stage-heading strong { font-size: 13px; }
 .builder-stage-heading span { color: #625f58; font-size: 9px; text-transform: none; }
 .builder-stage-heading button { height: 30px; background: #00d084; }
+.builder-theme-control { height: 34px; display: flex; align-items: center; gap: 7px; padding-left: 9px; color: #121212; border: 2px solid #121212; background: #00e5ff; box-shadow: 2px 2px 0 #121212; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.builder-theme-control select { align-self: stretch; min-width: 130px; border: 0; border-left: 2px solid #121212; border-radius: 0; padding: 0 25px 0 8px; color: #121212; background: #fff; font-size: 10px; font-weight: 700; cursor: pointer; }
 .builder-grid-canvas { position: absolute; inset: 0; height: auto; padding: 102px 28px 38px; background: #eae5d9; background-image: none; }
 .builder-grid-canvas::before { content: ''; position: absolute; z-index: 0; inset: 16px 18px 26px; max-width: 920px; margin: auto; border: 2px solid #121212; background: #fff; box-shadow: 5px 5px 0 #121212; pointer-events: none; }
 .builder-grid-canvas > * { position: relative; z-index: 1; max-width: 860px; margin-right: auto; margin-left: auto; }
@@ -366,6 +368,42 @@ body.builder-touch-dragging { user-select: none; overscroll-behavior: none; }
 .builder-form-canvas input, .builder-form-canvas select, .builder-form-canvas textarea { color: #121212; border: 2px solid #121212; border-radius: 0; background: #faf8f5; }
 .builder-form-canvas input:focus, .builder-form-canvas select:focus, .builder-form-canvas textarea:focus { border-color: #121212; box-shadow: 3px 3px 0 #ffe600; }
 .builder-form-canvas .a-form-submit { color: #121212; border: 2px solid #121212; border-radius: 0; background: #ffe600; box-shadow: 3px 3px 0 #121212; }
+
+.builder-form-canvas.builder-theme-tailwind { color: #0f172a; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 20px 45px rgba(15, 23, 42, .12); font-family: ui-sans-serif, sans-serif; }
+.builder-theme-tailwind .builder-form-heading { border-color: #e2e8f0; }
+.builder-theme-tailwind .builder-form-heading span { color: #0369a1; border-radius: 999px; padding: 3px 8px; background: #e0f2fe; }
+.builder-theme-tailwind .builder-form-heading h2, .builder-theme-tailwind .a-form-label, .builder-theme-tailwind legend { color: #0f172a; }
+.builder-theme-tailwind .builder-form-heading p { color: #64748b; }
+.builder-theme-tailwind input, .builder-theme-tailwind select, .builder-theme-tailwind textarea { color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .05); }
+.builder-theme-tailwind input:focus, .builder-theme-tailwind select:focus, .builder-theme-tailwind textarea:focus { border-color: #0ea5e9; outline: 2px solid rgba(14, 165, 233, .2); box-shadow: none; }
+.builder-theme-tailwind .a-form-submit { color: #fff; border: 0; border-radius: 6px; background: #0284c7; box-shadow: 0 1px 2px rgba(15, 23, 42, .1); }
+
+.builder-form-canvas.builder-theme-bootstrap { color: #212529; border: 1px solid #dee2e6; border-radius: 6px; background: #fff; box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15); font-family: var(--sans); }
+.builder-theme-bootstrap .builder-form-heading { border-color: #dee2e6; }
+.builder-theme-bootstrap .builder-form-heading span { color: #0d6efd; padding: 0; background: transparent; }
+.builder-theme-bootstrap .builder-form-heading h2, .builder-theme-bootstrap .a-form-label, .builder-theme-bootstrap legend { color: #212529; }
+.builder-theme-bootstrap .builder-form-heading p { color: #6c757d; }
+.builder-theme-bootstrap input, .builder-theme-bootstrap select, .builder-theme-bootstrap textarea { color: #212529; border: 1px solid #ced4da; border-radius: 6px; background: #fff; box-shadow: none; }
+.builder-theme-bootstrap input:focus, .builder-theme-bootstrap select:focus, .builder-theme-bootstrap textarea:focus { border-color: #86b7fe; outline: 0; box-shadow: 0 0 0 .25rem rgba(13, 110, 253, .25); }
+.builder-theme-bootstrap .a-form-submit { color: #fff; border: 1px solid #0d6efd; border-radius: 6px; background: #0d6efd; box-shadow: none; }
+
+.builder-form-canvas.builder-theme-material { color: #1d1b20; border: 0; border-radius: 12px; background: #fffbfe; box-shadow: 0 2px 8px rgba(29, 27, 32, .18); font-family: var(--sans); }
+.builder-theme-material .builder-form-heading { border-color: #cac4d0; }
+.builder-theme-material .builder-form-heading span { color: #6750a4; padding: 0; background: transparent; }
+.builder-theme-material .builder-form-heading h2, .builder-theme-material .a-form-label, .builder-theme-material legend { color: #1d1b20; }
+.builder-theme-material .builder-form-heading p { color: #49454f; }
+.builder-theme-material input, .builder-theme-material select, .builder-theme-material textarea { color: #1d1b20; border: 0; border-bottom: 2px solid #49454f; border-radius: 4px 4px 0 0; background: #e7e0ec; box-shadow: none; }
+.builder-theme-material input:focus, .builder-theme-material select:focus, .builder-theme-material textarea:focus { border-color: #6750a4; outline: 0; box-shadow: none; }
+.builder-theme-material .a-form-submit { color: #fff; border: 0; border-radius: 999px; background: #6750a4; box-shadow: 0 1px 3px rgba(29, 27, 32, .3); }
+
+.builder-form-canvas.builder-theme-neobrutalism { color: #121212; border: 2px solid #121212; border-radius: 0; background: #fff; box-shadow: 5px 5px 0 #121212; font-family: var(--sans); }
+.builder-theme-neobrutalism .builder-form-heading { border-color: #121212; }
+.builder-theme-neobrutalism .builder-form-heading span { color: #121212; padding: 0; border-radius: 0; background: #00e5ff; }
+.builder-theme-neobrutalism .builder-form-heading h2, .builder-theme-neobrutalism .a-form-label, .builder-theme-neobrutalism legend { color: #121212; }
+.builder-theme-neobrutalism .builder-form-heading p { color: #625f58; }
+.builder-theme-neobrutalism input, .builder-theme-neobrutalism select, .builder-theme-neobrutalism textarea { color: #121212; border: 2px solid #121212; border-radius: 0; background: #faf8f5; box-shadow: none; }
+.builder-theme-neobrutalism input:focus, .builder-theme-neobrutalism select:focus, .builder-theme-neobrutalism textarea:focus { border-color: #121212; outline: 0; box-shadow: 3px 3px 0 #ffe600; }
+.builder-theme-neobrutalism .a-form-submit { color: #121212; border: 2px solid #121212; border-radius: 0; background: #ffe600; box-shadow: 3px 3px 0 #121212; }
 .builder-code-stage { position: absolute; inset: 0; margin: 94px 28px 28px; border: 2px solid #121212; border-radius: 0; box-shadow: 5px 5px 0 #121212; }
 .builder-code-heading { color: #121212; border-color: #121212; background: #ffe600; font-weight: 800; }
 .builder-code-heading button { color: #121212; }

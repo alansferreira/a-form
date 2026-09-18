@@ -20,6 +20,7 @@ import {
   List,
   Mail,
   Monitor,
+  Palette,
   Plus,
   Play,
   RotateCcw,
@@ -83,6 +84,7 @@ const initialRows: readonly BuilderRow[] = [
 type BuilderView = 'design' | 'code' | 'preview'
 type InspectorView = 'properties' | 'spec'
 type SourceView = 'data' | 'fields'
+type PreviewTheme = 'tailwind' | 'bootstrap' | 'material' | 'neobrutalism'
 type Viewport = 'mobile' | 'tablet' | 'desktop'
 type ImportMode = 'replace' | 'merge'
 
@@ -110,15 +112,22 @@ const viewports: readonly { id: Viewport; label: string; icon: LucideIcon }[] = 
   { id: 'desktop', label: 'Desktop', icon: Monitor },
 ]
 
+const previewThemes: readonly { id: PreviewTheme; label: string }[] = [
+  { id: 'tailwind', label: 'Tailwind' },
+  { id: 'bootstrap', label: 'Bootstrap' },
+  { id: 'material', label: 'Material' },
+  { id: 'neobrutalism', label: 'Neobrutalism' },
+]
+
 function payloadKey(payload: PalettePayload): string {
   return payload.source === 'canvas' ? payload.fieldId ?? '' : payload.jsonPath ?? payload.kind
 }
 
-function Preview({ spec, viewport }: { spec: NormalizedFormSpec; viewport: Viewport }) {
+function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport: Viewport; theme: PreviewTheme }) {
   const [value, setValue] = useState<JsonObject>({})
   return (
     <div className={`builder-preview-frame builder-preview-${viewport}`}>
-      <div className="builder-form-canvas">
+      <div className={`builder-form-canvas builder-theme-${theme}`}>
         <div className="builder-form-heading">
           <span>LIVE FORM / 01</span>
           <h2>Untitled form</h2>
@@ -140,6 +149,7 @@ export function BuilderApp() {
   const [inspectorView, setInspectorView] = useState<InspectorView>('properties')
   const [sourceView, setSourceView] = useState<SourceView>('fields')
   const [viewport, setViewport] = useState<Viewport>('desktop')
+  const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('neobrutalism')
   const [notice, setNotice] = useState('Drag a source into any available grid slot.')
   const [copied, setCopied] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -484,6 +494,15 @@ export function BuilderApp() {
             <div><strong>{view === 'design' ? 'User Registration Flow' : view === 'code' ? 'AForm specification' : 'Live preview'}</strong><span>{view === 'design' ? 'Structured 12-column responsive layout' : `${rows.flatMap((row) => row.fields).length} fields`}</span></div>
             {view === 'design' && <button type="button" onClick={addRow}><Plus size={15} /> Add row</button>}
             {view === 'code' && <button type="button" onClick={applyCode}><Check size={15} /> Apply YAML</button>}
+            {view === 'preview' && (
+              <label className="builder-theme-control">
+                <Palette size={15} />
+                <span>Theme</span>
+                <select value={previewTheme} onChange={(event) => setPreviewTheme(event.target.value as PreviewTheme)}>
+                  {previewThemes.map((theme) => <option value={theme.id} key={theme.id}>{theme.label}</option>)}
+                </select>
+              </label>
+            )}
           </div>
           {view === 'design' ? (
             <div className="builder-grid-canvas">
@@ -541,7 +560,7 @@ export function BuilderApp() {
               <Editor aria-label="Editable AForm YAML" language="yaml" path="playground-v2-form.a-form.yaml" theme="a-form-dark" value={codeDraft} onChange={(value) => setCodeDraft(value ?? '')} options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }} />
             </div>
           ) : (
-            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} /></div>
+            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} /></div>
           )}
         </section>
 
