@@ -12,6 +12,13 @@ describe('builder model', () => {
     ])
   })
 
+  it('accepts JSON example data', () => {
+    const parsed = parseExampleData('{"customer":{"email":"ana@example.com","active":true}}')
+
+    expect(parsed.error).toBeUndefined()
+    expect(parsed.value).toEqual({ customer: { email: 'ana@example.com', active: true } })
+  })
+
   it('infers field kinds and creates nested schema paths', () => {
     expect(inferFieldKind('customer.email', 'ana@example.com')).toBe('email')
     expect(inferFieldKind('customer.active', true)).toBe('checkbox')

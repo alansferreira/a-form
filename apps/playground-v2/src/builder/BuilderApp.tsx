@@ -13,7 +13,6 @@ import {
   Database,
   Download,
   Eye,
-  FileUp,
   GripVertical,
   Hash,
   Laptop,
@@ -29,12 +28,11 @@ import {
   Tablet,
   Trash2,
   Type,
-  Upload,
-  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useDeferredValue, useRef, useState } from 'react'
-import { Editor } from '../monaco'
+import { StructuredEditor } from '../components/StructuredEditor'
+import type { StructuredDocument } from '../components/StructuredEditor'
 import {
   buildFormSpec,
   defaultSpan,
@@ -84,16 +82,6 @@ type InspectorView = 'properties' | 'spec'
 type SourceView = 'data' | 'fields'
 type PreviewTheme = 'tailwind' | 'bootstrap' | 'material' | 'neobrutalism'
 type Viewport = 'mobile' | 'tablet' | 'desktop'
-type ImportMode = 'replace' | 'merge'
-
-const initialImportSource = `person:
-  name: Johnathan Vance
-  email: name@example.com
-  phone: +1 (555) 019-2834
-  company: Acme Corp
-  role: Lead Architect
-`
-
 const kindIcons: Record<FieldKind, LucideIcon> = {
   text: Type,
   email: Mail,
@@ -138,7 +126,7 @@ function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport
 }
 
 export function BuilderApp() {
-  const [dataSource, setDataSource] = useState(exampleData)
+  const [dataDocument, setDataDocument] = useState<StructuredDocument>({ source: exampleData, format: 'yaml' })
   const [rows, setRows] = useState<readonly BuilderRow[]>(initialRows)
   const [baseSpec, setBaseSpec] = useState<FormSpec>()
   const [selectedFieldId, setSelectedFieldId] = useState<string>('field-1')
@@ -149,25 +137,32 @@ export function BuilderApp() {
   const [viewport, setViewport] = useState<Viewport>('desktop')
   const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('neobrutalism')
   const [notice, setNotice] = useState('Drag a source into any available grid slot.')
+  const [dataCopied, setDataCopied] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [importSource, setImportSource] = useState(initialImportSource)
-  const [importMode, setImportMode] = useState<ImportMode>('merge')
-  const [codeDraft, setCodeDraft] = useState('')
+  const [codeDocument, setCodeDocument] = useState<StructuredDocument>({ source: '', format: 'yaml' })
+  const [specFormat, setSpecFormat] = useState<StructuredDocument['format']>('yaml')
   const fieldSequence = useRef(4)
   const rowSequence = useRef(3)
-  const importInput = useRef<HTMLInputElement>(null)
-  const deferredDataSource = useDeferredValue(dataSource)
+  const deferredDataSource = useDeferredValue(dataDocument.source)
   const parsedData = parseExampleData(deferredDataSource)
   const dataPaths = parsedData.value ? listDataPaths(parsedData.value) : []
   const spec = buildFormSpec(rows, baseSpec)
   const normalized = normalizeFormSpec(spec)
   const specYaml = formSpecToYaml(rows, baseSpec)
+  const specDocument: StructuredDocument = {
+    source: specFormat === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
+    format: specFormat,
+  }
   const selectedField = rows.flatMap((row) => row.fields).find((field) => field.id === selectedFieldId)
   const placedPaths = new Set(rows.flatMap((row) => row.fields.map((field) => field.path)))
 
   const selectView = (nextView: BuilderView) => {
-    if (nextView === 'code') setCodeDraft(specYaml)
+    if (nextView === 'code') {
+      setCodeDocument((current) => ({
+        ...current,
+        source: current.format === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
+      }))
+    }
     setView(nextView)
   }
 
@@ -285,22 +280,15 @@ export function BuilderApp() {
     setSelectedFieldId('')
   }
 
-  const readImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0]
-    event.currentTarget.value = ''
-    if (!file) return
-    setImportSource(await file.text())
-  }
-
-  const applyCode = () => {
-    const parsed = parseYamlSpec(codeDraft)
+  const applySpecDocument = (document: StructuredDocument): boolean => {
+    const parsed = parseYamlSpec(document.source)
     const diagnostics = parsed.value
       ? [...parsed.diagnostics, ...validateFormSpec(parsed.value)]
       : parsed.diagnostics
     const error = diagnostics.find((diagnostic) => diagnostic.severity === 'error')
     if (!parsed.value || error) {
-      setNotice(`Could not apply YAML: ${error?.message ?? 'invalid AForm spec.'}`)
-      return
+      setNotice(`Could not apply ${document.format.toUpperCase()}: ${error?.message ?? 'invalid AForm spec.'}`)
+      return false
     }
 
     try {
@@ -314,52 +302,37 @@ export function BuilderApp() {
       setPendingPayload(undefined)
       setView('design')
       setInspectorView('properties')
-      setNotice(`YAML applied with ${importedRows.length} row${importedRows.length === 1 ? '' : 's'}.`)
+      setNotice(`${document.format.toUpperCase()} applied with ${importedRows.length} row${importedRows.length === 1 ? '' : 's'}.`)
+      return true
     } catch (error) {
-      setNotice(`Could not apply YAML: ${error instanceof Error ? error.message : 'unsupported layout.'}`)
+      setNotice(`Could not apply ${document.format.toUpperCase()}: ${error instanceof Error ? error.message : 'unsupported layout.'}`)
+      return false
     }
   }
 
-  const compileImportedData = () => {
-    const parsed = parseExampleData(importSource)
-    if (!parsed.value) {
-      setNotice(`Could not import data: ${parsed.error ?? 'invalid JSON or YAML.'}`)
-      return
-    }
+  const applyCode = () => {
+    applySpecDocument(codeDocument)
+  }
 
-    const existingPaths = new Set(importMode === 'merge' ? rows.flatMap((row) => row.fields.map((field) => field.path)) : [])
-    const importedFields = listDataPaths(parsed.value)
-      .filter((node) => !node.branch && !existingPaths.has(internalPath(node.jsonPath)))
-      .map((node) => createField({
-        source: 'data',
-        path: internalPath(node.jsonPath),
-        jsonPath: node.jsonPath,
-        label: node.label,
-        kind: inferFieldKind(node.jsonPath, node.value),
-        sampleValue: node.value,
-      }))
-    const importedRows: BuilderRow[] = []
-    for (const field of importedFields) {
-      const current = importedRows.at(-1)
-      const used = current?.fields.reduce((total, item) => total + item.span, 0) ?? 12
-      if (!current || used + field.span > 12) {
-        importedRows.push({ id: `row-${rowSequence.current++}`, fields: [field] })
-      } else {
-        importedRows[importedRows.length - 1] = { ...current, fields: [...current.fields, field] }
-      }
-    }
+  const importGeneratedSpec = (document: StructuredDocument): boolean => {
+    const applied = applySpecDocument(document)
+    if (applied) setSpecFormat(document.format)
+    return applied
+  }
 
-    setDataSource(importSource)
-    setRows((current) => importMode === 'replace' ? importedRows : [...current, ...importedRows])
-    setBaseSpec(undefined)
-    setSelectedFieldId(importedFields[0]?.id ?? selectedFieldId)
-    setImportOpen(false)
-    setNotice(`${importedFields.length} field${importedFields.length === 1 ? '' : 's'} compiled from imported data.`)
+  const copyData = async () => {
+    try {
+      await navigator.clipboard.writeText(dataDocument.source)
+      setDataCopied(true)
+      window.setTimeout(() => setDataCopied(false), 1400)
+    } catch {
+      setNotice('Clipboard access is unavailable.')
+    }
   }
 
   const copySpec = async () => {
     try {
-      await navigator.clipboard.writeText(specYaml)
+      await navigator.clipboard.writeText(specDocument.source)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1400)
     } catch {
@@ -368,10 +341,12 @@ export function BuilderApp() {
   }
 
   const downloadSpec = () => {
-    const url = URL.createObjectURL(new Blob([specYaml], { type: 'text/yaml' }))
+    const extension = codeDocument.format === 'json' ? 'json' : 'yaml'
+    const source = codeDocument.source || (extension === 'json' ? JSON.stringify(spec, null, 2) : specYaml)
+    const url = URL.createObjectURL(new Blob([source], { type: extension === 'json' ? 'application/json' : 'text/yaml' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'form.a-form.yaml'
+    anchor.download = `form.a-form.${extension}`
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -385,10 +360,6 @@ export function BuilderApp() {
           <button className={view === 'design' ? 'active' : ''} type="button" onClick={() => selectView('design')}><Rows3 size={15} /> Design</button>
           <button className={view === 'code' ? 'active' : ''} type="button" onClick={() => selectView('code')}><Code2 size={15} /> Code (YAML)</button>
           <button className={view === 'preview' ? 'active' : ''} type="button" onClick={() => selectView('preview')}><Eye size={15} /> Preview</button>
-        </div>
-        <div className="builder-top-actions">
-          <input ref={importInput} type="file" accept=".yaml,.yml,.json,text/yaml,application/yaml,application/json" hidden onChange={readImportFile} />
-          <button type="button" onClick={() => setImportOpen(true)}><Upload size={15} /> YAML Import / Export</button>
         </div>
       </header>
 
@@ -411,13 +382,13 @@ export function BuilderApp() {
           </div>
           {sourceView === 'data' ? (
             <div className="builder-data-editor">
-              <Editor
-                aria-label="Example YAML data"
-                language="yaml"
+              <StructuredEditor
+                document={dataDocument}
+                label="Example data"
                 path="example-data.yaml"
                 theme="a-form-dark"
-                value={dataSource}
-                onChange={(value) => setDataSource(value ?? '')}
+                onChange={setDataDocument}
+                toolbarActions={<button type="button" title={`Copy ${dataDocument.format.toUpperCase()}`} aria-label={`Copy ${dataDocument.format.toUpperCase()}`} onClick={copyData}>{dataCopied ? <Check size={14} /> : <Clipboard size={14} />}</button>}
                 options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 11, lineHeight: 18, minimap: { enabled: false }, padding: { top: 10 }, scrollBeyondLastLine: false, tabSize: 2 }}
               />
             </div>
@@ -478,7 +449,7 @@ export function BuilderApp() {
           <div className="builder-stage-heading">
             <div><strong>{view === 'design' ? 'User Registration Flow' : view === 'code' ? 'AForm specification' : 'Live preview'}</strong><span>{view === 'design' ? 'Structured 12-column responsive layout' : `${rows.flatMap((row) => row.fields).length} fields`}</span></div>
             {view === 'design' && <button type="button" onClick={addRow}><Plus size={15} /> Add row</button>}
-            {view === 'code' && <button type="button" onClick={applyCode}><Check size={15} /> Apply YAML</button>}
+            {view === 'code' && <button type="button" onClick={applyCode}><Check size={15} /> Apply {codeDocument.format.toUpperCase()}</button>}
             {view === 'preview' && (
               <label className="builder-theme-control">
                 <Palette size={15} />
@@ -541,8 +512,15 @@ export function BuilderApp() {
             </div>
           ) : view === 'code' ? (
             <div className="builder-code-stage">
-              <div className="builder-code-heading"><span>form.a-form.yaml</span><button type="button" onClick={downloadSpec}><Download size={14} /> Download</button></div>
-              <Editor aria-label="Editable AForm YAML" language="yaml" path="playground-v2-form.a-form.yaml" theme="a-form-dark" value={codeDraft} onChange={(value) => setCodeDraft(value ?? '')} options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }} />
+              <StructuredEditor
+                document={codeDocument}
+                label="AForm schema"
+                path="form.a-form.yaml"
+                theme="a-form-dark"
+                onChange={setCodeDocument}
+                toolbarActions={<button type="button" onClick={downloadSpec}><Download size={14} /> Download</button>}
+                options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }}
+              />
             </div>
           ) : (
             <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} /></div>
@@ -556,11 +534,16 @@ export function BuilderApp() {
           </div>
           {inspectorView === 'spec' ? (
             <div className="builder-spec-panel">
-              <div className="builder-spec-actions">
-                <span>form.a-form.yaml</span>
-                <button type="button" title="Copy YAML" aria-label="Copy YAML" onClick={copySpec}>{copied ? <Check size={14} /> : <Clipboard size={14} />}</button>
-              </div>
-              <Editor aria-label="Generated AForm YAML" language="yaml" path="generated-form.a-form.yaml" theme="a-form-dark" value={specYaml} options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 10, lineHeight: 17, minimap: { enabled: false }, padding: { top: 12 }, readOnly: true, scrollBeyondLastLine: false }} />
+              <StructuredEditor
+                document={specDocument}
+                label="Generated AForm spec"
+                path="generated-form.a-form.yaml"
+                theme="a-form-dark"
+                onChange={() => undefined}
+                onImport={importGeneratedSpec}
+                toolbarActions={<button type="button" title={`Copy ${specFormat.toUpperCase()}`} aria-label={`Copy ${specFormat.toUpperCase()}`} onClick={copySpec}>{copied ? <Check size={14} /> : <Clipboard size={14} />}</button>}
+                options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 10, lineHeight: 17, minimap: { enabled: false }, padding: { top: 12 }, readOnly: true, scrollBeyondLastLine: false }}
+              />
             </div>
           ) : selectedField ? (
             <div className="builder-properties">
@@ -580,37 +563,6 @@ export function BuilderApp() {
           )}
         </aside>
       </section>
-      {importOpen && (
-        <div className="builder-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setImportOpen(false)}>
-          <section className="builder-import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
-            <header>
-              <span className="builder-modal-icon"><Braces size={19} /></span>
-              <div><strong id="import-title">Import schema or data</strong><small>Paste JSON or YAML to map reactive fields automatically</small></div>
-              <button type="button" title="Close" aria-label="Close import dialog" onClick={() => setImportOpen(false)}><X size={17} /></button>
-            </header>
-            <div className="builder-import-tools">
-              <span><Code2 size={14} /> Paste code (JSON / YAML)</span>
-              <button type="button" onClick={() => importInput.current?.click()}><FileUp size={14} /> Upload file</button>
-              <em><Check size={13} /> Syntax checked on import</em>
-            </div>
-            <div className="builder-import-body">
-              <label htmlFor="import-source">schema_import.yaml</label>
-              <div className="builder-import-editor">
-                <Editor aria-label="Import AForm YAML Spec" language="yaml" path="playground-v2-form.a-form.yaml" theme="a-form-dark" value={importSource} onChange={(value) => setImportSource(value || '')} options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }} />
-              </div>
-              <fieldset>
-                <legend>Import mode</legend>
-                <label className={importMode === 'replace' ? 'selected' : ''}><input type="radio" name="import-mode" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} /><span><strong>Replace current schema</strong><small>Clear mapped fields and rebuild the form.</small></span></label>
-                <label className={importMode === 'merge' ? 'selected' : ''}><input type="radio" name="import-mode" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} /><span><strong>Merge with existing fields</strong><small>Keep the canvas and add newly detected paths.</small></span></label>
-              </fieldset>
-            </div>
-            <footer>
-              <span><Database size={15} /> {parseExampleData(importSource).value ? `${listDataPaths(parseExampleData(importSource).value!).filter((node) => !node.branch).length} fields detected` : 'Waiting for valid data'}</span>
-              <div><button type="button" onClick={() => setImportOpen(false)}>Cancel</button><button className="primary" type="button" onClick={compileImportedData}><Upload size={15} /> Load & compile fields</button></div>
-            </footer>
-          </section>
-        </div>
-      )}
       {touchDrag && <TouchDragOverlay drag={touchDrag} />}
     </main>
   )
