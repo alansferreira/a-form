@@ -17,6 +17,10 @@ Second-generation visual playground based on the Kinetic Schema prototype.
 npm run dev --workspace a-form-playground-v2
 ```
 
+The preview includes runtime selectors for Material, Bootstrap, Tailwind and
+Neobrutalism. The selected presentation is preview state only and is not added
+to the exported AForm specification.
+
 ## Build
 
 ```bash

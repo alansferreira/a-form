@@ -19,8 +19,10 @@ import {
   Download,
   Eye,
   GripVertical,
+  Github,
   Hash,
   Laptop,
+  Linkedin,
   List,
   Mail,
   Monitor,
@@ -384,6 +386,10 @@ export function BuilderApp() {
           <button className={view === 'code' ? 'active' : ''} type="button" onClick={() => selectView('code')}><Code2 size={15} /> Code (YAML)</button>
           <button className={view === 'preview' ? 'active' : ''} type="button" onClick={() => selectView('preview')}><Eye size={15} /> Preview</button>
         </div>
+        <nav className="builder-external-links" aria-label="External links">
+          <a href="https://github.com/alansferreira/a-form" target="_blank" rel="noreferrer" title="Open AForm on GitHub" aria-label="Open AForm on GitHub"><Github size={15} /></a>
+          <a href="https://www.linkedin.com/in/alansferreira/" target="_blank" rel="noreferrer" title="Open Alan Ferreira on LinkedIn" aria-label="Open Alan Ferreira on LinkedIn"><Linkedin size={15} /></a>
+        </nav>
       </header>
 
       <section className="builder-toolbar">

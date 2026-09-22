@@ -121,6 +121,10 @@ specification. The default renderer remains active when `presentation` is not
 provided. CSS and provider setup, when required by a framework, belong to the
 host application.
 
+For complete installation commands and examples for the official Material and
+Bootstrap adapters, the Tailwind-oriented preset, and custom widgets, see the
+[presentation adapter quick start](../../docs/presentation-adapters-quick-start.md).
+
 ## Async Validation
 
 Create the registry and engine in the host application, then pass the engine to `AForm`. Adapter endpoints, credentials, and request mappings remain outside the form specification.

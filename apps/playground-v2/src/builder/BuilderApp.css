@@ -5,6 +5,9 @@
 .builder-brand-copy { display: flex; align-items: baseline; gap: 9px; margin-left: 10px; }
 .builder-brand-copy strong { color: var(--ink); font: 700 17px var(--display); }
 .builder-brand-copy span { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+.builder-external-links { display: flex; align-items: center; gap: 3px; margin-left: auto; }
+.builder-external-links a { width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); border-radius: 4px; }
+.builder-external-links a:hover, .builder-external-links a:focus-visible { color: var(--ink); background: var(--surface); outline: 0; }
 .builder-view-switch { display: flex; margin-left: 48px; border: 1px solid var(--line-strong); border-radius: 5px; overflow: hidden; }
 .builder-view-switch button { height: 30px; display: flex; align-items: center; gap: 6px; border: 0; padding: 0 12px; color: var(--muted); background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }
 .builder-view-switch button + button { border-left: 1px solid var(--line); }

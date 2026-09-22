@@ -8,6 +8,8 @@ The result is one declarative form contract that can be parsed, validated, inspe
 
 [Open the AForm Playground](https://alansferreira.github.io/a-form/) to build, edit, and preview a form in the browser.
 
+[Source code on GitHub](https://github.com/alansferreira/a-form) · [Alan Ferreira on LinkedIn](https://www.linkedin.com/in/alansferreira/)
+
 ## Why AForm?
 
 - **Schema-first by design.** Use standard JSON Schema for data shape and validation.
@@ -67,6 +69,27 @@ In a React consumer, add the packages used by the complete YAML-to-form pipeline
 ```bash
 npm install a-form-core a-form-parser a-form-react
 ```
+
+Presentation adapters are runtime-only packages. They let the same portable
+specification render with Material UI, Bootstrap, Tailwind-oriented or
+Neobrutalist presentation:
+
+```bash
+npm install a-form-presentation-material @mui/material @mui/icons-material @emotion/react @emotion/styled
+```
+
+```tsx
+import { AForm, PresentationAdapterRegistry } from "a-form-react";
+import { MaterialAdapter } from "a-form-presentation-material";
+
+const registry = new PresentationAdapterRegistry();
+registry.register(MaterialAdapter);
+
+<AForm spec={spec} presentation={{ registry, adapterId: "material" }} />;
+```
+
+See the [presentation adapter quick start](docs/presentation-adapters-quick-start.md)
+for Bootstrap, Tailwind, Neobrutalism and custom widget/template examples.
 
 ## Publishing
 
