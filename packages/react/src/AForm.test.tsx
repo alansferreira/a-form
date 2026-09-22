@@ -5,11 +5,13 @@ import {
   AsyncValidationRegistry,
 } from "a-form-async-validation";
 import type { JsonObject, NormalizedFormSpec } from "a-form-core";
+import type { WidgetProps } from "@rjsf/utils";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AForm } from "./AForm.js";
+import { PresentationAdapterRegistry } from "./presentation.js";
 
 const actEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean };
 
@@ -64,6 +66,36 @@ describe("AForm", () => {
     expect(html).toContain("grid-column:span 4");
     expect(html).toMatch(/data-a-form-field="name" style="[^"]*order:0/);
     expect(html).toMatch(/data-a-form-field="email" style="[^"]*order:1/);
+  });
+
+  it("uses a registered presentation widget without changing AForm layout", () => {
+    const registry = new PresentationAdapterRegistry();
+    registry.register({
+      id: "custom",
+      className: "custom-presentation",
+      widgets: {
+        TextWidget: (props: WidgetProps) => (
+          <input
+            data-custom-widget="text"
+            id={props.id}
+            value={String(props.value ?? "")}
+            onChange={(event) => props.onChange(event.target.value)}
+          />
+        ),
+      },
+    });
+
+    const html = renderToStaticMarkup(
+      <AForm
+        spec={spec}
+        presentation={{ registry, adapterId: "custom" }}
+      />,
+    );
+
+    expect(html).toContain('data-custom-widget="text"');
+    expect(html).toContain('class="custom-presentation"');
+    expect(html).toContain('data-a-form-field="name"');
+    expect(html).toContain("grid-column:span 4");
   });
 
   it("runs blur and submit validation, displays issues, and blocks invalid submit", async () => {

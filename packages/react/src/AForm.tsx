@@ -29,8 +29,9 @@ import type {
   NormalizedFormSpec,
   NormalizedRowNode,
 } from "a-form-core";
+import type { PresentationConfig } from "./presentation.js";
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, FormEvent, ReactNode } from "react";
+import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
 
 export type AFormViewport = "mobile" | "tablet" | "desktop";
 
@@ -55,6 +56,7 @@ export interface AFormProps {
   readonly noHtml5Validate?: boolean;
   readonly className?: string;
   readonly submitLabel?: ReactNode;
+  readonly presentation?: PresentationConfig;
   readonly asyncValidation?: AFormAsyncValidationOptions;
   readonly onChange?: (value: JsonObject) => void;
   readonly onSubmit?: (value: JsonObject, event: FormEvent<HTMLFormElement>) => void;
@@ -65,6 +67,7 @@ interface LayoutFormContext {
   readonly order: Readonly<Record<string, number>>;
   readonly layoutPaths: readonly string[];
   readonly asyncFields: Readonly<Record<string, AsyncFieldState>>;
+  readonly presentationFieldTemplate?: ComponentType<FieldTemplateProps>;
 }
 
 interface AsyncFieldState {
@@ -138,14 +141,12 @@ function createFieldTemplate() {
     const context = props.registry.formContext as LayoutFormContext;
     const relation = relationToLayout(path, context);
     const asyncState = context.asyncFields[path];
+    const AdapterFieldTemplate = context.presentationFieldTemplate;
 
     if (props.hidden) return <div className="a-form-hidden-field" hidden>{props.children}</div>;
     if (!relation.exact && !relation.ancestor && !relation.descendant) return null;
     if (relation.ancestor && !relation.exact) return <>{props.children}</>;
 
-    const options = getUiOptions(props.uiSchema);
-    const WrapIfAdditionalTemplate = getTemplate("WrapIfAdditionalTemplate", props.registry, options);
-    const isCheckbox = options.widget === "checkbox" || props.schema.type === "boolean";
     const style = relation.exact
       ? {
           ...props.style,
@@ -160,18 +161,7 @@ function createFieldTemplate() {
         data-a-form-field={relation.exact ? path : undefined}
         style={style}
       >
-        <WrapIfAdditionalTemplate {...props}>
-          {props.displayLabel && !isCheckbox && (
-            <label className="a-form-label" htmlFor={props.id}>
-              {props.label}
-              {props.required ? <span className="a-form-required"> *</span> : null}
-            </label>
-          )}
-          {props.displayLabel ? props.description : null}
-          {props.children}
-          {!props.hideError && props.errors}
-          {props.help}
-        </WrapIfAdditionalTemplate>
+        {AdapterFieldTemplate ? <AdapterFieldTemplate {...props} /> : renderDefaultFieldContents(props)}
         {asyncState?.status === "pending" && (
           <span className="a-form-async-status" role="status">Validating...</span>
         )}
@@ -187,6 +177,27 @@ function createFieldTemplate() {
       </div>
     );
   };
+}
+
+function renderDefaultFieldContents(props: FieldTemplateProps): ReactNode {
+  const options = getUiOptions(props.uiSchema);
+  const WrapIfAdditionalTemplate = getTemplate("WrapIfAdditionalTemplate", props.registry, options);
+  const isCheckbox = options.widget === "checkbox" || props.schema.type === "boolean";
+
+  return (
+    <WrapIfAdditionalTemplate {...props}>
+      {props.displayLabel && !isCheckbox && (
+        <label className="a-form-label" htmlFor={props.id}>
+          {props.label}
+          {props.required ? <span className="a-form-required"> *</span> : null}
+        </label>
+      )}
+      {props.displayLabel ? props.description : null}
+      {props.children}
+      {!props.hideError && props.errors}
+      {props.help}
+    </WrapIfAdditionalTemplate>
+  );
 }
 
 function createObjectFieldTemplate() {
@@ -256,10 +267,16 @@ export function AForm({
   noHtml5Validate,
   className,
   submitLabel = "Submit",
+  presentation,
   asyncValidation,
   onChange,
   onSubmit,
 }: AFormProps) {
+  const presentationAdapter = presentation?.registry.get(presentation.adapterId);
+  if (presentation && !presentationAdapter) {
+    throw new Error(`Presentation adapter '${presentation.adapterId}' is not registered.`);
+  }
+  const { ButtonTemplates: adapterButtonTemplates, ...adapterTemplates } = presentationAdapter?.templates ?? {};
   const [records, setRecords] = useState<Readonly<Record<string, ValidationRecord>>>({});
   const [pending, setPending] = useState<Readonly<Record<string, string>>>({});
   const latestValue = useRef<JsonObject>(value ?? {});
@@ -353,7 +370,15 @@ export function AForm({
       blocking: asyncFields[fieldPath]?.blocking ?? false,
     };
   });
-  const formContext: LayoutFormContext = { spans, order, layoutPaths: Object.keys(spans), asyncFields };
+  const formContext: LayoutFormContext = {
+    spans,
+    order,
+    layoutPaths: Object.keys(spans),
+    asyncFields,
+    ...(presentationAdapter?.templates?.FieldTemplate
+      ? { presentationFieldTemplate: presentationAdapter.templates.FieldTemplate }
+      : {}),
+  };
   const extraErrors: ErrorSchema = {};
   Object.values(records).forEach(({ fieldPath, result }) => {
     if (!result.blocking) return;
@@ -369,7 +394,7 @@ export function AForm({
 
   return (
     <Form
-      className={className ?? ""}
+      className={[className, presentationAdapter?.className].filter(Boolean).join(" ")}
       schema={spec.schema as RJSFSchema}
       uiSchema={(spec.uiSchema ?? {}) as UiSchema}
       validator={validator}
@@ -427,7 +452,14 @@ export function AForm({
         if (results.some((result) => result?.blocking)) return;
         onSubmit?.(submittedValue, event);
       }}
-      templates={{ FieldTemplate, ObjectFieldTemplate, ButtonTemplates: { SubmitButton } }}
+      {...(presentationAdapter?.fields ? { fields: presentationAdapter.fields } : {})}
+      {...(presentationAdapter?.widgets ? { widgets: presentationAdapter.widgets } : {})}
+      templates={{
+        ...adapterTemplates,
+        FieldTemplate,
+        ObjectFieldTemplate,
+        ButtonTemplates: { ...adapterButtonTemplates, SubmitButton },
+      }}
       showErrorList={false}
     />
   );

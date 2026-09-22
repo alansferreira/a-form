@@ -13,6 +13,16 @@ adapter. O primeiro incremento cobre Material e Bootstrap por integracoes RJSF
 oficiais, Tailwind por um adapter orientado as classes do host e Neobrutalism
 por adapter e CSS autocontidos.
 
+## Status de implementacao
+
+- Concluido: contrato `PresentationAdapter`, registry runtime e composicao no
+   `a-form-react`.
+- Concluido: adapters autocontidos `a-form-presentation-tailwind` e
+   `a-form-presentation-neobrutalism`, ambos conectados ao `playground-v2`.
+- Concluido: adapters oficiais `a-form-presentation-material` e
+   `a-form-presentation-bootstrap`, conectados ao `playground-v2` com suas
+   dependencias opcionais.
+
 ## Fase 1: contrato e composicao do renderer
 
 1. Definir em `packages/react/src/presentation.ts` os tipos publicos
@@ -47,7 +57,7 @@ por adapter e CSS autocontidos.
    number, textarea e select usam o label flutuante do `TextField`, enquanto
    checkbox e radio preservam sua estrutura nativa. O core nao deve copiar
    markup Material.
-2. Criar `packages/presentation-bootstrap/` usando `@rjsf/bootstrap-5` e
+2. Criar `packages/presentation-bootstrap/` usando `@rjsf/react-bootstrap` e
    Bootstrap 5 como peer dependency. Exportar o adapter e documentar o import
    explicito do CSS pelo host. O pacote nao deve injetar CDN ou elementos
    `<link>` em runtime.
@@ -160,7 +170,7 @@ por adapter e CSS autocontidos.
 ## Consideracoes para implementacao
 
 1. Antes de fixar dependencias, confirmar a matriz entre React 19.2, RJSF 6.10,
-   `@rjsf/mui`, `@rjsf/bootstrap-5` e as versoes de MUI e Bootstrap. Todos os
+   `@rjsf/mui`, `@rjsf/react-bootstrap` e as versoes de MUI e Bootstrap. Todos os
    pacotes RJSF devem permanecer alinhados na mesma minor.
 2. Se o custo de quatro pacotes se mostrar alto, preservar o contrato e publicar
    os adapters por subpath exports em um unico pacote. Eles nao devem ser

@@ -87,6 +87,39 @@ export function FormFromYaml({ source }: { source: string }) {
 | `noHtml5Validate` | `boolean` | `false` | Disables native browser validation UI |
 | `className` | `string` | `""` | Adds a class to the root form |
 | `asyncValidation` | `AFormAsyncValidationOptions` | - | Connects an async validation engine and optional result observer |
+| `presentation` | `PresentationConfig` | - | Selects a runtime presentation adapter and its widgets |
+
+## Presentation Adapters
+
+Presentation adapters customize widgets and field templates without putting
+framework code in the serializable form specification. The `ui:widget` value
+continues to identify the semantic widget; the adapter supplies its runtime
+implementation, markup, CSS classes, and states.
+
+```tsx
+import {
+  AForm,
+  PresentationAdapterRegistry,
+} from "a-form-react";
+
+const registry = new PresentationAdapterRegistry();
+registry.register({
+  id: "custom",
+  widgets: {
+    TextWidget: CustomTextWidget,
+  },
+});
+
+<AForm
+  spec={spec}
+  presentation={{ registry, adapterId: "custom" }}
+/>;
+```
+
+Adapters are runtime-only and are not exported with the YAML or JSON form
+specification. The default renderer remains active when `presentation` is not
+provided. CSS and provider setup, when required by a framework, belong to the
+host application.
 
 ## Async Validation
 

@@ -1,6 +1,11 @@
 import type { FormSpec, JsonObject, NormalizedFormSpec } from 'a-form-core'
 import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'a-form-parser'
 import { AForm } from 'a-form-react'
+import { PresentationAdapterRegistry } from 'a-form-react'
+import { NeobrutalismAdapter } from 'a-form-presentation-neobrutalism'
+import { BootstrapAdapter } from 'a-form-presentation-bootstrap'
+import { MaterialAdapter } from 'a-form-presentation-material'
+import { TailwindAdapter } from 'a-form-presentation-tailwind'
 import {
   AlignLeft,
   Braces,
@@ -48,6 +53,9 @@ import type { BuilderField, BuilderRow, FieldKind, PalettePayload } from './mode
 import { TouchDragOverlay } from './TouchDragOverlay'
 import { useTouchDrag } from './useTouchDrag'
 import './BuilderApp.css'
+import 'a-form-presentation-neobrutalism/styles.css'
+import 'a-form-presentation-bootstrap/styles.css'
+import 'a-form-presentation-tailwind/styles.css'
 
 const exampleData = `customer:
   firstName: Ana
@@ -105,6 +113,12 @@ const previewThemes: readonly { id: PreviewTheme; label: string }[] = [
   { id: 'neobrutalism', label: 'Neobrutalism' },
 ]
 
+const presentationRegistry = new PresentationAdapterRegistry()
+presentationRegistry.register(NeobrutalismAdapter)
+presentationRegistry.register(TailwindAdapter)
+presentationRegistry.register(BootstrapAdapter)
+presentationRegistry.register(MaterialAdapter)
+
 function payloadKey(payload: PalettePayload): string {
   return payload.source === 'canvas' ? payload.fieldId ?? '' : payload.jsonPath ?? payload.kind
 }
@@ -119,7 +133,16 @@ function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport
           <h2>Untitled form</h2>
           <p>Generated from the current virtual grid.</p>
         </div>
-        <AForm spec={spec} viewport={viewport} value={value} onChange={setValue} noHtml5Validate />
+          <AForm
+            spec={spec}
+            viewport={viewport}
+            value={value}
+            onChange={setValue}
+            noHtml5Validate
+            presentation={theme === 'neobrutalism' || theme === 'tailwind' || theme === 'bootstrap' || theme === 'material'
+              ? { registry: presentationRegistry, adapterId: theme }
+              : undefined}
+          />
       </div>
     </div>
   )

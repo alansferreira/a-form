@@ -1,0 +1,76 @@
+.a-form-tailwind {
+  --a-form-tailwind-text: #0f172a;
+  --a-form-tailwind-border: #cbd5e1;
+  --a-form-tailwind-primary: #0284c7;
+  color: var(--a-form-tailwind-text);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.a-form-tailwind .a-form-field {
+  margin-bottom: 1rem;
+}
+
+.a-form-tailwind .a-form-tailwind-label,
+.a-form-tailwind legend {
+  display: block;
+  margin-bottom: .35rem;
+  color: var(--a-form-tailwind-text);
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.a-form-tailwind .a-form-tailwind-required {
+  color: #dc2626;
+}
+
+.a-form-tailwind input,
+.a-form-tailwind select,
+.a-form-tailwind textarea {
+  box-sizing: border-box;
+  width: 100%;
+  color: var(--a-form-tailwind-text);
+  border: 1px solid var(--a-form-tailwind-border);
+  border-radius: .375rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+  font: inherit;
+}
+
+.a-form-tailwind input,
+.a-form-tailwind select {
+  min-height: 2.5rem;
+  padding: .5rem .75rem;
+}
+
+.a-form-tailwind textarea {
+  min-height: 7rem;
+  padding: .625rem .75rem;
+  resize: vertical;
+}
+
+.a-form-tailwind input[type="checkbox"],
+.a-form-tailwind input[type="radio"] {
+  width: 1rem;
+  min-height: 1rem;
+  accent-color: var(--a-form-tailwind-primary);
+  box-shadow: none;
+}
+
+.a-form-tailwind input:focus,
+.a-form-tailwind select:focus,
+.a-form-tailwind textarea:focus {
+  border-color: var(--a-form-tailwind-primary);
+  outline: 2px solid rgb(14 165 233 / 20%);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.a-form-tailwind .a-form-submit {
+  color: #fff;
+  border: 0;
+  border-radius: .375rem;
+  background: var(--a-form-tailwind-primary);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 10%);
+  font: inherit;
+  font-weight: 600;
+}

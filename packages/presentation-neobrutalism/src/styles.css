@@ -1,0 +1,77 @@
+.a-form-neobrutalism {
+  --a-form-neo-ink: #121212;
+  --a-form-neo-paper: #fff;
+  --a-form-neo-yellow: #ffe600;
+  --a-form-neo-cyan: #00e5ff;
+  color: var(--a-form-neo-ink);
+  font-family: "Arial Black", Impact, sans-serif;
+}
+
+.a-form-neobrutalism .a-form-field {
+  margin-bottom: 1rem;
+}
+
+.a-form-neobrutalism .a-form-neobrutalism-label,
+.a-form-neobrutalism legend {
+  display: block;
+  margin-bottom: .4rem;
+  color: var(--a-form-neo-ink);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.a-form-neobrutalism .a-form-neobrutalism-required {
+  color: #ff4365;
+}
+
+.a-form-neobrutalism input,
+.a-form-neobrutalism select,
+.a-form-neobrutalism textarea {
+  box-sizing: border-box;
+  width: 100%;
+  color: var(--a-form-neo-ink);
+  border: 2px solid var(--a-form-neo-ink);
+  border-radius: 0;
+  background: var(--a-form-neo-paper);
+  box-shadow: 3px 3px 0 var(--a-form-neo-ink);
+  font: inherit;
+}
+
+.a-form-neobrutalism input,
+.a-form-neobrutalism select {
+  min-height: 2.7rem;
+  padding: .55rem .7rem;
+}
+
+.a-form-neobrutalism textarea {
+  min-height: 7rem;
+  padding: .7rem;
+  resize: vertical;
+}
+
+.a-form-neobrutalism input[type="checkbox"],
+.a-form-neobrutalism input[type="radio"] {
+  width: 1.15rem;
+  min-height: 1.15rem;
+  accent-color: var(--a-form-neo-yellow);
+  box-shadow: 2px 2px 0 var(--a-form-neo-ink);
+}
+
+.a-form-neobrutalism input:focus,
+.a-form-neobrutalism select:focus,
+.a-form-neobrutalism textarea:focus {
+  outline: 2px solid var(--a-form-neo-cyan);
+  outline-offset: 2px;
+}
+
+.a-form-neobrutalism .a-form-submit {
+  color: var(--a-form-neo-ink);
+  border: 2px solid var(--a-form-neo-ink);
+  border-radius: 0;
+  background: var(--a-form-neo-yellow);
+  box-shadow: 3px 3px 0 var(--a-form-neo-ink);
+  font: inherit;
+  font-weight: 900;
+}

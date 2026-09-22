@@ -1,0 +1,13 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+
+.a-form-bootstrap .a-form-field {
+  margin-bottom: 1rem;
+}
+
+.a-form-bootstrap .a-form-submit {
+  padding: .375rem .75rem;
+  color: #fff;
+  border: 1px solid #0d6efd;
+  border-radius: .375rem;
+  background: #0d6efd;
+}
