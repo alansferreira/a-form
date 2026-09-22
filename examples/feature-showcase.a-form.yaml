@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=../schemas/a-form.schema.json
+version: "1"
+schema:
+  $schema: https://json-schema.org/draft/2020-12/schema
+  title: Trip request
+  type: object
+  required: [trip]
+  properties:
+    trip:
+      type: object
+      required: [travelerName, travelerEmail, country, city]
+      properties:
+        travelerName:
+          type: string
+          title: Full name
+          minLength: 2
+        travelerEmail:
+          type: string
+          title: Email
+          format: email
+        departureDate:
+          type: string
+          title: Departure date
+          format: date
+        returnDate:
+          type: string
+          title: Return date
+          format: date
+        country:
+          type: string
+          title: Country
+          enum: [BR, CR, PA]
+        city:
+          type: string
+          title: City
+        budget:
+          type: number
+          title: Budget (USD)
+          minimum: 0
+          maximum: 5000
+        priority:
+          type: string
+          title: Priority
+          enum: [low, medium, high]
+uiSchema:
+  trip:
+    travelerEmail:
+      ui:autocomplete: email
+    departureDate:
+      ui:widget: date
+    returnDate:
+      ui:widget: date
+    city:
+      ui:widget: asyncOptions
+      ui:helpTemplate: "Showing cities for {{trip.country}}."
+      ui:options:
+        source: "/api/cities?country={{trip.country}}"
+        valueKey: id
+        labelKey: name
+        itemTemplate: "{{item.name}} ({{item.stateCode}})"
+    budget:
+      ui:widget: range
+      ui:options:
+        min: 0
+        max: 5000
+        step: 100
+layout:
+  - type: panel
+    id: traveler-panel
+    title: Traveler
+    children:
+      - type: row
+        children:
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: trip.travelerName
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: trip.travelerEmail
+  - type: panel
+    id: trip-panel
+    title: Trip details
+    description: Dates, destination and budget for this trip.
+    children:
+      - type: row
+        children:
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: trip.departureDate
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: trip.returnDate
+      - type: row
+        children:
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: trip.country
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: trip.city
+      - type: row
+        children:
+          - type: column
+            span: { mobile: 12, tablet: 8 }
+            children:
+              - type: field
+                path: trip.budget
+          - type: column
+            span: { mobile: 12, tablet: 4 }
+            align: end
+            children:
+              - type: field
+                path: trip.priority

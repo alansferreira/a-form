@@ -212,6 +212,8 @@ export function FormFromYaml({ source }: { source: string }) {
 
 See [examples/registration.a-form.yaml](examples/registration.a-form.yaml) for a complete source document.
 
+For right-aligned columns, visual panels, date/time/range/autocomplete/async-options fields, and templated help text (`ui:helpTemplate`), see the [layout & fields cookbook](docs/layout-and-fields-cookbook.md) and [examples/feature-showcase.a-form.yaml](examples/feature-showcase.a-form.yaml).
+
 ## Editor Schema
 
 The Draft 2020-12 schema at [schemas/a-form.schema.json](schemas/a-form.schema.json) provides completion, documentation, and structural validation for AForm YAML files in editors compatible with YAML Language Server.
