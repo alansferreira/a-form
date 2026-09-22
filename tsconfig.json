@@ -5,6 +5,7 @@
     { "path": "./packages/parser" },
     { "path": "./packages/async-validation" },
     { "path": "./packages/adapter-fetch" },
+    { "path": "./packages/template" },
     { "path": "./packages/react" }
   ]
 }

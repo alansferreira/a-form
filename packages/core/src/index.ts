@@ -40,10 +40,14 @@ export interface FieldNode {
   readonly path: string;
 }
 
+export type ColumnAlign = "start" | "end";
+
 export interface ColumnNode {
   readonly type: "column";
   readonly id?: string;
   readonly span?: ResponsiveSpan | number;
+  /** Which edge of the row this column's slots are consumed from; "end" hugs the right edge. */
+  readonly align?: ColumnAlign;
   readonly children: readonly (FieldNode | RowNode)[];
 }
 
@@ -90,9 +94,10 @@ export interface NormalizedFieldNode extends Omit<FieldNode, "id"> {
   readonly id: string;
 }
 
-export interface NormalizedColumnNode extends Omit<ColumnNode, "children" | "id" | "span"> {
+export interface NormalizedColumnNode extends Omit<ColumnNode, "children" | "id" | "span" | "align"> {
   readonly id: string;
   readonly span: NormalizedResponsiveSpan;
+  readonly align: ColumnAlign;
   readonly children: readonly (NormalizedFieldNode | NormalizedRowNode)[];
 }
 

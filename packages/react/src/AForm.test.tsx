@@ -40,6 +40,7 @@ const spec: NormalizedFormSpec = {
       type: "column",
       id: "main-left",
       span: { mobile: 12, tablet: 6, desktop: 4 },
+      align: "start",
       children: [
         { type: "field", id: "name", path: "name" },
         { type: "field", id: "email", path: "email" },
@@ -63,7 +64,7 @@ describe("AForm", () => {
     expect(html).not.toContain("name=\"root_ignored\"");
     expect(html).toContain("data-a-form-field=\"name\"");
     expect(html).toContain("data-a-form-field=\"email\"");
-    expect(html).toContain("grid-column:span 4");
+    expect(html).toContain("grid-column:1 / 5");
     expect(html).toMatch(/data-a-form-field="name" style="[^"]*order:0/);
     expect(html).toMatch(/data-a-form-field="email" style="[^"]*order:1/);
   });
@@ -95,7 +96,74 @@ describe("AForm", () => {
     expect(html).toContain('data-custom-widget="text"');
     expect(html).toContain('class="custom-presentation"');
     expect(html).toContain('data-a-form-field="name"');
-    expect(html).toContain("grid-column:span 4");
+    expect(html).toContain("grid-column:1 / 5");
+  });
+
+  it("hugs the row's right edge when a column is align: end", () => {
+    const alignedSpec: NormalizedFormSpec = {
+      ...spec,
+      layout: [{
+        type: "row",
+        id: "main",
+        children: [
+          {
+            type: "column",
+            id: "left",
+            span: { mobile: 12, tablet: 12, desktop: 6 },
+            align: "start",
+            children: [{ type: "field", id: "name", path: "name" }],
+          },
+          {
+            type: "column",
+            id: "right",
+            span: { mobile: 12, tablet: 12, desktop: 3 },
+            align: "end",
+            children: [{ type: "field", id: "email", path: "email" }],
+          },
+        ],
+      }],
+    };
+
+    const html = renderToStaticMarkup(<AForm spec={alignedSpec} viewport="desktop" />);
+
+    expect(html).toMatch(/data-a-form-field="name" style="[^"]*grid-column:1 \/ 7/);
+    expect(html).toMatch(/data-a-form-field="email" style="[^"]*grid-column:10 \/ 13/);
+  });
+
+  it("keeps rows on separate grid lines even when a right-aligned row leaves a gap", () => {
+    const gappySpec: NormalizedFormSpec = {
+      ...spec,
+      schema: { ...spec.schema, properties: { ...spec.schema.properties, notes: { type: "string", title: "Notes" } } },
+      layout: [
+        {
+          type: "row",
+          id: "row-1",
+          children: [{
+            type: "column",
+            id: "row-1.right",
+            span: { mobile: 12, tablet: 12, desktop: 3 },
+            align: "end",
+            children: [{ type: "field", id: "email", path: "email" }],
+          }],
+        },
+        {
+          type: "row",
+          id: "row-2",
+          children: [{
+            type: "column",
+            id: "row-2.left",
+            span: { mobile: 12, tablet: 12, desktop: 6 },
+            align: "start",
+            children: [{ type: "field", id: "notes", path: "notes" }],
+          }],
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(<AForm spec={gappySpec} viewport="desktop" />);
+    const rowOf = (path: string) => html.match(new RegExp(`data-a-form-field="${path}" style="[^"]*grid-row:(\\d+)`))?.[1];
+
+    expect(rowOf("email")).not.toBe(rowOf("notes"));
   });
 
   it("runs blur and submit validation, displays issues, and blocks invalid submit", async () => {

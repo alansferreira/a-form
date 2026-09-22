@@ -18,6 +18,7 @@ export interface BuilderField {
   readonly label: string
   readonly kind: FieldKind
   readonly span: number
+  readonly align: 'start' | 'end'
   readonly sampleValue?: JsonValue
 }
 
@@ -204,6 +205,7 @@ export function formSpecToBuilderRows(spec: FormSpec): readonly BuilderRow[] {
         label: typeof schema?.title === 'string' ? schema.title : titleFromSegment(path.split('.').at(-1) ?? path),
         kind: fieldKindFromSpec(spec, path),
         span,
+        align: column.align === 'end' ? 'end' : 'start',
       }
     }),
   }))
@@ -246,6 +248,7 @@ export function buildFormSpec(rows: readonly BuilderRow[], baseSpec?: FormSpec):
           type: 'column',
           id: `${row.id}.${field.id}`,
           span: { mobile: 12, tablet: field.span, desktop: field.span },
+          align: field.align,
           children: [{ type: 'field', id: field.id, path: field.path }],
         })),
       })),
@@ -258,6 +261,23 @@ export function formSpecToYaml(rows: readonly BuilderRow[], baseSpec?: FormSpec)
 
 export function defaultSpan(kind: FieldKind): number {
   return FIELD_KINDS.find((item) => item.kind === kind)?.span ?? 6
+}
+
+/** Mirrors the AForm renderer's placement: "end"-aligned fields hug the row's right edge instead of packing left. */
+export function fieldGridColumns(fields: readonly BuilderField[]): Record<string, string> {
+  const columns: Record<string, string> = {}
+  let startCursor = 1
+  let endCursor = 13
+  for (const field of fields) {
+    if (field.align === 'end') {
+      endCursor -= field.span
+      columns[field.id] = `${endCursor} / ${endCursor + field.span}`
+    } else {
+      columns[field.id] = `${startCursor} / ${startCursor + field.span}`
+      startCursor += field.span
+    }
+  }
+  return columns
 }
 
 export function internalPath(jsonPath: string): string {

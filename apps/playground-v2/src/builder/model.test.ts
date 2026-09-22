@@ -32,6 +32,7 @@ describe('builder model', () => {
         label: 'Email',
         kind: 'email',
         span: 6,
+        align: 'start',
       }],
     }])
 
@@ -69,8 +70,8 @@ describe('builder model', () => {
     expect(rows).toEqual([{
       id: 'row-1',
       fields: [
-        { id: 'field-1', path: 'email', jsonPath: '$.email', label: 'Work email', kind: 'email', span: 4 },
-        { id: 'field-2', path: 'message', jsonPath: '$.message', label: 'Message', kind: 'textarea', span: 8 },
+        { id: 'field-1', path: 'email', jsonPath: '$.email', label: 'Work email', kind: 'email', span: 4, align: 'start' },
+        { id: 'field-2', path: 'message', jsonPath: '$.message', label: 'Message', kind: 'textarea', span: 8, align: 'start' },
       ],
     }])
   })

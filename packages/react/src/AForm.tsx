@@ -63,7 +63,7 @@ export interface AFormProps {
 }
 
 interface LayoutFormContext {
-  readonly spans: Readonly<Record<string, number>>;
+  readonly placements: Readonly<Record<string, GridPlacement>>;
   readonly order: Readonly<Record<string, number>>;
   readonly layoutPaths: readonly string[];
   readonly asyncFields: Readonly<Record<string, AsyncFieldState>>;
@@ -107,20 +107,40 @@ function addError(errorSchema: ErrorSchema, path: string, message: string): void
   current.__errors = [...(current.__errors ?? []), message];
 }
 
+interface GridPlacement {
+  readonly start: number;
+  readonly end: number;
+  readonly row: number;
+}
+
 function collectLayout(
   rows: readonly NormalizedRowNode[],
   viewport: AFormViewport,
-  spans: Record<string, number>,
+  placements: Record<string, GridPlacement>,
   order: Record<string, number>,
+  rowCursor: { current: number } = { current: 1 },
 ): void {
   for (const row of rows) {
+    // Pin every field in this row to the same explicit grid line so a right-aligned
+    // column's leftover gap can't be filled by the next row's fields (auto-placement bleed).
+    const gridRow = rowCursor.current++;
+    // "start"-aligned columns pack from grid line 1 rightward; "end"-aligned columns pack from line 13 leftward.
+    let startCursor = 1;
+    let endCursor = 13;
     for (const column of row.children) {
+      const span = column.span[viewport];
+      const placement: GridPlacement = column.align === "end"
+        ? { start: endCursor - span, end: endCursor, row: gridRow }
+        : { start: startCursor, end: startCursor + span, row: gridRow };
+      if (column.align === "end") endCursor -= span;
+      else startCursor += span;
+
       for (const child of column.children) {
         if (child.type === "field") {
-          spans[child.path] = column.span[viewport];
+          placements[child.path] = placement;
           order[child.path] = Object.keys(order).length;
         } else {
-          collectLayout([child], viewport, spans, order);
+          collectLayout([child], viewport, placements, order, rowCursor);
         }
       }
     }
@@ -150,7 +170,8 @@ function createFieldTemplate() {
     const style = relation.exact
       ? {
           ...props.style,
-          gridColumn: `span ${context.spans[path]}`,
+          gridColumn: `${context.placements[path]?.start} / ${context.placements[path]?.end}`,
+          gridRow: context.placements[path]?.row,
           order: context.order[path],
         } as CSSProperties
       : props.style;
@@ -351,9 +372,9 @@ export function AForm({
     }, debounceMs));
   };
 
-  const spans: Record<string, number> = {};
+  const placements: Record<string, GridPlacement> = {};
   const order: Record<string, number> = {};
-  collectLayout(spec.layout, viewport, spans, order);
+  collectLayout(spec.layout, viewport, placements, order);
   const asyncFields: Record<string, AsyncFieldState> = {};
   Object.values(records).forEach(({ fieldPath, result }) => {
     const previous = asyncFields[fieldPath];
@@ -371,9 +392,9 @@ export function AForm({
     };
   });
   const formContext: LayoutFormContext = {
-    spans,
+    placements,
     order,
-    layoutPaths: Object.keys(spans),
+    layoutPaths: Object.keys(placements),
     asyncFields,
     ...(presentationAdapter?.templates?.FieldTemplate
       ? { presentationFieldTemplate: presentationAdapter.templates.FieldTemplate }

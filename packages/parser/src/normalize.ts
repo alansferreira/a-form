@@ -34,6 +34,7 @@ function normalizeColumn(column: ColumnNode, path: string): NormalizedColumnNode
     ...column,
     id: column.id ?? path,
     span: normalizeSpan(column.span),
+    align: column.align ?? "start",
     children: column.children.map((child, index): NormalizedFieldNode | NormalizedRowNode => {
       const childPath = `${path}.${child.type}-${index + 1}`;
       return child.type === "row"

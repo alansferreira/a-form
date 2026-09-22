@@ -37,13 +37,14 @@ import {
   Type,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useDeferredValue, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { StructuredEditor } from '../components/StructuredEditor'
 import type { StructuredDocument } from '../components/StructuredEditor'
 import {
   buildFormSpec,
   defaultSpan,
   FIELD_KINDS,
+  fieldGridColumns,
   formSpecToBuilderRows,
   formSpecToYaml,
   inferFieldKind,
@@ -75,14 +76,14 @@ const initialRows: readonly BuilderRow[] = [
   {
     id: 'row-1',
     fields: [
-      { id: 'field-1', path: 'customer.firstName', jsonPath: '$.customer.firstName', label: 'First name', kind: 'text', span: 6, sampleValue: 'Ana' },
-      { id: 'field-2', path: 'customer.email', jsonPath: '$.customer.email', label: 'Email', kind: 'email', span: 6, sampleValue: 'ana@example.com' },
+      { id: 'field-1', path: 'customer.firstName', jsonPath: '$.customer.firstName', label: 'First name', kind: 'text', span: 6, align: 'start', sampleValue: 'Ana' },
+      { id: 'field-2', path: 'customer.email', jsonPath: '$.customer.email', label: 'Email', kind: 'email', span: 6, align: 'start', sampleValue: 'ana@example.com' },
     ],
   },
   {
     id: 'row-2',
     fields: [
-      { id: 'field-3', path: 'customer.acceptsTerms', jsonPath: '$.customer.acceptsTerms', label: 'Accepts terms', kind: 'checkbox', span: 12, sampleValue: true },
+      { id: 'field-3', path: 'customer.acceptsTerms', jsonPath: '$.customer.acceptsTerms', label: 'Accepts terms', kind: 'checkbox', span: 12, align: 'start', sampleValue: true },
     ],
   },
 ]
@@ -155,6 +156,7 @@ export function BuilderApp() {
   const [rows, setRows] = useState<readonly BuilderRow[]>(initialRows)
   const [baseSpec, setBaseSpec] = useState<FormSpec>()
   const [selectedFieldId, setSelectedFieldId] = useState<string>('field-1')
+  const [pathDraft, setPathDraft] = useState('')
   const [pendingPayload, setPendingPayload] = useState<PalettePayload>()
   const [view, setView] = useState<BuilderView>('design')
   const [inspectorView, setInspectorView] = useState<InspectorView>('properties')
@@ -180,6 +182,10 @@ export function BuilderApp() {
   }
   const selectedField = rows.flatMap((row) => row.fields).find((field) => field.id === selectedFieldId)
   const placedPaths = new Set(rows.flatMap((row) => row.fields.map((field) => field.path)))
+
+  useEffect(() => {
+    setPathDraft(selectedField?.jsonPath ?? '')
+  }, [selectedFieldId, selectedField?.jsonPath])
 
   const selectView = (nextView: BuilderView) => {
     if (nextView === 'code') {
@@ -207,6 +213,7 @@ export function BuilderApp() {
       label: payload.label,
       kind: payload.kind,
       span: defaultSpan(payload.kind),
+      align: 'start',
       sampleValue: payload.sampleValue,
     }
   }
@@ -295,6 +302,23 @@ export function BuilderApp() {
       return
     }
     updateSelected({ span })
+  }
+
+  const commitFieldPath = (rawValue: string) => {
+    if (!selectedField) return
+    const path = rawValue.trim().replace(/^\$\.?/, '')
+    if (!path || !/^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/.test(path)) {
+      setNotice('Absolute path must be dot-separated identifiers, e.g. customer.firstName.')
+      setPathDraft(selectedField.jsonPath)
+      return
+    }
+    const duplicate = rows.flatMap((row) => row.fields).some((field) => field.id !== selectedFieldId && field.path === path)
+    if (duplicate) {
+      setNotice(`Path "${path}" is already used by another field.`)
+      setPathDraft(selectedField.jsonPath)
+      return
+    }
+    updateSelected({ path, jsonPath: `$.${path}` })
   }
 
   const removeSelected = () => {
@@ -494,6 +518,7 @@ export function BuilderApp() {
               <div className="builder-grid-ruler">{Array.from({ length: 12 }, (_, index) => <span key={index}>{index + 1}</span>)}</div>
               {rows.map((row, rowIndex) => {
                 const used = row.fields.reduce((total, field) => total + field.span, 0)
+                const gridColumns = fieldGridColumns(row.fields)
                 return (
                   <div className="builder-row-wrap" key={row.id}>
                     <div className="builder-row-meta"><span>ROW {String(rowIndex + 1).padStart(2, '0')}</span><small>{used}/12</small><button type="button" title="Remove row" aria-label={`Remove row ${rowIndex + 1}`} onClick={() => removeRow(row.id)}><Trash2 size={13} /></button></div>
@@ -519,7 +544,7 @@ export function BuilderApp() {
                               className={`builder-field-block ${selectedFieldId === field.id ? 'selected' : ''}`}
                               draggable
                               key={field.id}
-                              style={{ gridColumn: `span ${field.span}` }}
+                              style={{ gridColumn: gridColumns[field.id] }}
                               type="button"
                               onClick={() => { setSelectedFieldId(field.id); setInspectorView('properties') }}
                               onDragStart={(event) => beginDrag(event, payload)}
@@ -578,11 +603,23 @@ export function BuilderApp() {
             <div className="builder-properties">
               <div className="builder-selection-heading"><span className="builder-kind-icon">{(() => { const Icon = kindIcons[selectedField.kind]; return <Icon size={17} /> })()}</span><div><strong>{selectedField.label}</strong><small>{selectedField.kind} field</small></div></div>
               <label>Label<input value={selectedField.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
-              <label>Absolute path<input value={selectedField.jsonPath} readOnly /></label>
+              <label>Absolute path<input
+                value={pathDraft}
+                onChange={(event) => setPathDraft(event.target.value)}
+                onBlur={(event) => commitFieldPath(event.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitFieldPath(pathDraft) } }}
+              /></label>
               <label>Field type<select value={selectedField.kind} onChange={(event) => updateSelected({ kind: event.target.value as FieldKind })}>{FIELD_KINDS.map((item) => <option value={item.kind} key={item.kind}>{item.label}</option>)}</select></label>
               <fieldset>
                 <legend>Column span</legend>
                 <div className="builder-span-control">{[3, 4, 6, 8, 12].map((span) => <button className={selectedField.span === span ? 'active' : ''} type="button" key={span} onClick={() => updateSpan(span)}>{span}</button>)}</div>
+              </fieldset>
+              <fieldset>
+                <legend>Alignment</legend>
+                <div className="builder-span-control">
+                  <button className={selectedField.align === 'start' ? 'active' : ''} type="button" onClick={() => updateSelected({ align: 'start' })}>Left</button>
+                  <button className={selectedField.align === 'end' ? 'active' : ''} type="button" onClick={() => updateSelected({ align: 'end' })}>Right</button>
+                </div>
               </fieldset>
               <div className="builder-property-summary"><span>Desktop <strong>{selectedField.span}/12</strong></span><span>Tablet <strong>{selectedField.span}/12</strong></span><span>Mobile <strong>12/12</strong></span></div>
               <button className="builder-delete-field" type="button" onClick={removeSelected}><Trash2 size={14} /> Remove field</button>

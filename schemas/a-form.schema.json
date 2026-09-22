@@ -542,6 +542,10 @@
             }
           ]
         },
+        "align": {
+          "description": "Which edge of the row this column's slots are consumed from; \"end\" hugs the right edge. Defaults to \"start\".",
+          "enum": ["start", "end"]
+        },
         "children": {
           "type": "array",
           "items": {
