@@ -1,6 +1,6 @@
 {
   "name": "a-form-adapter-fetch",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "type": "module",
   "exports": {
     ".": {
@@ -16,6 +16,6 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "a-form-async-validation": "^0.1.5"
+    "a-form-async-validation": "^0.2.0"
   }
 }

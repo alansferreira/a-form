@@ -1,6 +1,6 @@
 {
   "name": "a-form-presentation-bootstrap",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "type": "module",
   "exports": {
     ".": {
@@ -9,14 +9,17 @@
     },
     "./styles.css": "./src/styles.css"
   },
-  "files": ["dist", "src/styles.css"],
+  "files": [
+    "dist",
+    "src/styles.css"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
     "@rjsf/react-bootstrap": "^6.10.1",
-    "a-form-react": "^0.1.5"
+    "a-form-react": "^0.2.0"
   },
   "peerDependencies": {
     "bootstrap": "^5.3.0",

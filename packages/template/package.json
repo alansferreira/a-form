@@ -1,6 +1,6 @@
 {
   "name": "a-form-template",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "exports": {
     ".": {
@@ -16,7 +16,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "a-form-core": "^0.1.5",
+    "a-form-core": "^0.2.0",
     "mustache": "^4.2.0"
   },
   "devDependencies": {

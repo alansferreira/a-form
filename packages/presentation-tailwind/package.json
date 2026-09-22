@@ -1,6 +1,6 @@
 {
   "name": "a-form-presentation-tailwind",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "type": "module",
   "exports": {
     ".": {
@@ -9,14 +9,17 @@
     },
     "./styles.css": "./src/styles.css"
   },
-  "files": ["dist", "src/styles.css"],
+  "files": [
+    "dist",
+    "src/styles.css"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
     "@rjsf/utils": "^6.10.0",
-    "a-form-react": "^0.1.5"
+    "a-form-react": "^0.2.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
