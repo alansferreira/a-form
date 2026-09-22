@@ -6,19 +6,19 @@
 @import '@fontsource/plus-jakarta-sans/700.css';
 
 :root {
-  --paper: #f5f2eb;
-  --surface: #fff;
-  --ink: #121212;
-  --text: #121212;
-  --muted: #625f58;
-  --line: #121212;
-  --line-strong: #121212;
-  --rust: #ffe600;
-  --rust-soft: rgba(255, 230, 0, .22);
-  --green: #00d084;
-  --green-soft: rgba(0, 208, 132, .18);
-  --cyan: #00e5ff;
-  --darkest: #eae5d9;
+  --paper: #f8fafc;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --text: #0f172a;
+  --muted: #475569;
+  --line: #dfe7f2;
+  --line-strong: #94a3b8;
+  --rust: #f59e0b;
+  --rust-soft: rgba(245, 158, 11, .14);
+  --green: #16a34a;
+  --green-soft: rgba(22, 163, 74, .12);
+  --cyan: #2563eb;
+  --darkest: #e2e8f0;
   --sans: 'Plus Jakarta Sans', sans-serif;
   --display: 'Plus Jakarta Sans', sans-serif;
   --mono: 'JetBrains Mono', monospace;

@@ -98,7 +98,7 @@ const initialRows: readonly BuilderRow[] = [
 type BuilderView = 'design' | 'code' | 'preview'
 type InspectorView = 'properties' | 'spec'
 type SourceView = 'data' | 'fields'
-type PreviewTheme = 'tailwind' | 'bootstrap' | 'material' | 'neobrutalism'
+type PreviewTheme = 'amber-tech-high-contrast' | 'tailwind' | 'bootstrap' | 'material'
 type Viewport = 'mobile' | 'tablet' | 'desktop'
 const kindIcons: Record<FieldKind, LucideIcon> = {
   text: Type,
@@ -123,10 +123,10 @@ const viewports: readonly { id: Viewport; label: string; icon: LucideIcon }[] = 
 ]
 
 const previewThemes: readonly { id: PreviewTheme; label: string }[] = [
+  { id: 'amber-tech-high-contrast', label: 'Amber Tech High Contrast' },
   { id: 'tailwind', label: 'Tailwind' },
   { id: 'bootstrap', label: 'Bootstrap' },
   { id: 'material', label: 'Material' },
-  { id: 'neobrutalism', label: 'Neobrutalism' },
 ]
 
 const presentationRegistry = new PresentationAdapterRegistry()
@@ -155,8 +155,8 @@ function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport
             value={value}
             onChange={setValue}
             noHtml5Validate
-            presentation={theme === 'neobrutalism' || theme === 'tailwind' || theme === 'bootstrap' || theme === 'material'
-              ? { registry: presentationRegistry, adapterId: theme }
+            presentation={theme === 'amber-tech-high-contrast' || theme === 'tailwind' || theme === 'bootstrap' || theme === 'material'
+              ? { registry: presentationRegistry, adapterId: theme === 'amber-tech-high-contrast' ? 'neobrutalism' : theme }
               : undefined}
           />
       </div>
@@ -176,7 +176,7 @@ export function BuilderApp() {
   const [inspectorView, setInspectorView] = useState<InspectorView>('properties')
   const [sourceView, setSourceView] = useState<SourceView>('fields')
   const [viewport, setViewport] = useState<Viewport>('desktop')
-  const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('neobrutalism')
+  const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('amber-tech-high-contrast')
   const [notice, setNotice] = useState('Drag a source into any available grid slot.')
   const [dataCopied, setDataCopied] = useState(false)
   const [copied, setCopied] = useState(false)

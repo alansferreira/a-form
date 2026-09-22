@@ -14,7 +14,7 @@ Second-generation visual playground based on the Kinetic Schema prototype.
 ## Development
 
 ```bash
-npm run dev --workspace a-form-playground-v2
+npm run dev --workspace a-form-playground
 ```
 
 The preview includes runtime selectors for Material, Bootstrap, Tailwind and
@@ -24,7 +24,19 @@ to the exported AForm specification.
 ## Build
 
 ```bash
-npm run build --workspace a-form-playground-v2
+npm run build --workspace a-form-playground
 ```
 
-The production output is written to `apps/playground-v2/dist`. The current GitHub Pages workflow still deploys `apps/playground/dist`.
+
+## Publish
+
+```bash
+npm login 
+npm run version:bump
+npm run build
+
+npm pack --workspaces
+npm publish --workspaces
+```
+
+The production output is written to `apps/playground/dist`. The current GitHub Pages workflow still deploys `apps/playground/dist`.
