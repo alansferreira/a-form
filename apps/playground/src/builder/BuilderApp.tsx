@@ -1,56 +1,71 @@
 import type { FormSpec, JsonObject, NormalizedFormSpec } from 'a-form-core'
 import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'a-form-parser'
 import { AForm } from 'a-form-react'
+import { PresentationAdapterRegistry } from 'a-form-react'
+import { NeobrutalismAdapter } from 'a-form-presentation-neobrutalism'
+import { BootstrapAdapter } from 'a-form-presentation-bootstrap'
+import { MaterialAdapter } from 'a-form-presentation-material'
+import { TailwindAdapter } from 'a-form-presentation-tailwind'
 import {
   AlignLeft,
   Braces,
+  Calendar,
+  CalendarClock,
   Check,
   CheckSquare,
   ChevronRight,
   CircleDot,
   Clipboard,
+  Clock,
+  Cloud,
   Code2,
   Database,
   Download,
   Eye,
-  FileUp,
   GripVertical,
+  Github,
   Hash,
   Laptop,
+  Linkedin,
   List,
   Mail,
   Monitor,
+  Palette,
   Plus,
-  Play,
-  RotateCcw,
   Rows3,
+  Search,
   Settings2,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Tablet,
   Trash2,
   Type,
-  Upload,
-  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useDeferredValue, useRef, useState } from 'react'
-import { Editor } from '../monaco'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
+import { StructuredEditor } from '../components/StructuredEditor'
+import type { StructuredDocument } from '../components/StructuredEditor'
 import {
   buildFormSpec,
   defaultSpan,
   FIELD_KINDS,
+  fieldGridColumns,
   formSpecToBuilderRows,
   formSpecToYaml,
+  groupRowsByPanel,
   inferFieldKind,
   internalPath,
   listDataPaths,
   parseExampleData,
 } from './model'
-import type { BuilderField, BuilderRow, FieldKind, PalettePayload } from './model'
+import type { BuilderField, BuilderPanel, BuilderRow, FieldKind, PalettePayload } from './model'
 import { TouchDragOverlay } from './TouchDragOverlay'
 import { useTouchDrag } from './useTouchDrag'
 import './BuilderApp.css'
+import 'a-form-presentation-neobrutalism/styles.css'
+import 'a-form-presentation-bootstrap/styles.css'
+import 'a-form-presentation-tailwind/styles.css'
 
 const exampleData = `customer:
   firstName: Ana
@@ -68,31 +83,23 @@ const initialRows: readonly BuilderRow[] = [
   {
     id: 'row-1',
     fields: [
-      { id: 'field-1', path: 'customer.firstName', jsonPath: '$.customer.firstName', label: 'First name', kind: 'text', span: 6, sampleValue: 'Ana' },
-      { id: 'field-2', path: 'customer.email', jsonPath: '$.customer.email', label: 'Email', kind: 'email', span: 6, sampleValue: 'ana@example.com' },
+      { id: 'field-1', path: 'customer.firstName', jsonPath: '$.customer.firstName', label: 'First name', kind: 'text', span: 6, align: 'start', sampleValue: 'Ana' },
+      { id: 'field-2', path: 'customer.email', jsonPath: '$.customer.email', label: 'Email', kind: 'email', span: 6, align: 'start', sampleValue: 'ana@example.com' },
     ],
   },
   {
     id: 'row-2',
     fields: [
-      { id: 'field-3', path: 'customer.acceptsTerms', jsonPath: '$.customer.acceptsTerms', label: 'Accepts terms', kind: 'checkbox', span: 12, sampleValue: true },
+      { id: 'field-3', path: 'customer.acceptsTerms', jsonPath: '$.customer.acceptsTerms', label: 'Accepts terms', kind: 'checkbox', span: 12, align: 'start', sampleValue: true },
     ],
   },
 ]
 
 type BuilderView = 'design' | 'code' | 'preview'
 type InspectorView = 'properties' | 'spec'
+type SourceView = 'data' | 'fields'
+type PreviewTheme = 'tailwind' | 'bootstrap' | 'material' | 'neobrutalism'
 type Viewport = 'mobile' | 'tablet' | 'desktop'
-type ImportMode = 'replace' | 'merge'
-
-const initialImportSource = `person:
-  name: Johnathan Vance
-  email: name@example.com
-  phone: +1 (555) 019-2834
-  company: Acme Corp
-  role: Lead Architect
-`
-
 const kindIcons: Record<FieldKind, LucideIcon> = {
   text: Type,
   email: Mail,
@@ -101,6 +108,12 @@ const kindIcons: Record<FieldKind, LucideIcon> = {
   checkbox: CheckSquare,
   radio: CircleDot,
   select: List,
+  date: Calendar,
+  time: Clock,
+  datetime: CalendarClock,
+  range: SlidersHorizontal,
+  autocomplete: Search,
+  asyncOptions: Cloud,
 }
 
 const viewports: readonly { id: Viewport; label: string; icon: LucideIcon }[] = [
@@ -109,54 +122,93 @@ const viewports: readonly { id: Viewport; label: string; icon: LucideIcon }[] = 
   { id: 'desktop', label: 'Desktop', icon: Monitor },
 ]
 
+const previewThemes: readonly { id: PreviewTheme; label: string }[] = [
+  { id: 'tailwind', label: 'Tailwind' },
+  { id: 'bootstrap', label: 'Bootstrap' },
+  { id: 'material', label: 'Material' },
+  { id: 'neobrutalism', label: 'Neobrutalism' },
+]
+
+const presentationRegistry = new PresentationAdapterRegistry()
+presentationRegistry.register(NeobrutalismAdapter)
+presentationRegistry.register(TailwindAdapter)
+presentationRegistry.register(BootstrapAdapter)
+presentationRegistry.register(MaterialAdapter)
+
 function payloadKey(payload: PalettePayload): string {
   return payload.source === 'canvas' ? payload.fieldId ?? '' : payload.jsonPath ?? payload.kind
 }
 
-function Preview({ spec, viewport }: { spec: NormalizedFormSpec; viewport: Viewport }) {
+function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport: Viewport; theme: PreviewTheme }) {
   const [value, setValue] = useState<JsonObject>({})
   return (
     <div className={`builder-preview-frame builder-preview-${viewport}`}>
-      <div className="builder-form-canvas">
+      <div className={`builder-form-canvas builder-theme-${theme}`}>
         <div className="builder-form-heading">
           <span>LIVE FORM / 01</span>
           <h2>Untitled form</h2>
           <p>Generated from the current virtual grid.</p>
         </div>
-        <AForm spec={spec} viewport={viewport} value={value} onChange={setValue} noHtml5Validate />
+          <AForm
+            spec={spec}
+            viewport={viewport}
+            value={value}
+            onChange={setValue}
+            noHtml5Validate
+            presentation={theme === 'neobrutalism' || theme === 'tailwind' || theme === 'bootstrap' || theme === 'material'
+              ? { registry: presentationRegistry, adapterId: theme }
+              : undefined}
+          />
       </div>
     </div>
   )
 }
 
 export function BuilderApp() {
-  const [dataSource, setDataSource] = useState(exampleData)
+  const [dataDocument, setDataDocument] = useState<StructuredDocument>({ source: exampleData, format: 'yaml' })
   const [rows, setRows] = useState<readonly BuilderRow[]>(initialRows)
+  const [panels, setPanels] = useState<readonly BuilderPanel[]>([])
   const [baseSpec, setBaseSpec] = useState<FormSpec>()
   const [selectedFieldId, setSelectedFieldId] = useState<string>('field-1')
+  const [pathDraft, setPathDraft] = useState('')
   const [pendingPayload, setPendingPayload] = useState<PalettePayload>()
   const [view, setView] = useState<BuilderView>('design')
   const [inspectorView, setInspectorView] = useState<InspectorView>('properties')
+  const [sourceView, setSourceView] = useState<SourceView>('fields')
   const [viewport, setViewport] = useState<Viewport>('desktop')
+  const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('neobrutalism')
   const [notice, setNotice] = useState('Drag a source into any available grid slot.')
+  const [dataCopied, setDataCopied] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [importSource, setImportSource] = useState(initialImportSource)
-  const [importMode, setImportMode] = useState<ImportMode>('merge')
-  const [codeDraft, setCodeDraft] = useState('')
+  const [codeDocument, setCodeDocument] = useState<StructuredDocument>({ source: '', format: 'yaml' })
+  const [specFormat, setSpecFormat] = useState<StructuredDocument['format']>('yaml')
   const fieldSequence = useRef(4)
   const rowSequence = useRef(3)
-  const importInput = useRef<HTMLInputElement>(null)
-  const deferredDataSource = useDeferredValue(dataSource)
+  const panelSequence = useRef(1)
+  const deferredDataSource = useDeferredValue(dataDocument.source)
   const parsedData = parseExampleData(deferredDataSource)
   const dataPaths = parsedData.value ? listDataPaths(parsedData.value) : []
-  const spec = buildFormSpec(rows, baseSpec)
+  const spec = buildFormSpec(rows, panels, baseSpec)
   const normalized = normalizeFormSpec(spec)
-  const specYaml = formSpecToYaml(rows, baseSpec)
+  const specYaml = formSpecToYaml(rows, panels, baseSpec)
+  const specDocument: StructuredDocument = {
+    source: specFormat === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
+    format: specFormat,
+  }
   const selectedField = rows.flatMap((row) => row.fields).find((field) => field.id === selectedFieldId)
+  const placedPaths = new Set(rows.flatMap((row) => row.fields.map((field) => field.path)))
+
+  useEffect(() => {
+    setPathDraft(selectedField?.jsonPath ?? '')
+  }, [selectedFieldId, selectedField?.jsonPath])
 
   const selectView = (nextView: BuilderView) => {
-    if (nextView === 'code') setCodeDraft(specYaml)
+    if (nextView === 'code') {
+      setCodeDocument((current) => ({
+        ...current,
+        source: current.format === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
+      }))
+    }
     setView(nextView)
   }
 
@@ -176,6 +228,7 @@ export function BuilderApp() {
       label: payload.label,
       kind: payload.kind,
       span: defaultSpan(payload.kind),
+      align: 'start',
       sampleValue: payload.sampleValue,
     }
   }
@@ -242,10 +295,36 @@ export function BuilderApp() {
     setNotice(`${id} added. Select a source, then click a slot.`)
   }
 
+  const addPanel = () => {
+    const panelId = `panel-${panelSequence.current++}`
+    const rowId = `row-${rowSequence.current++}`
+    setPanels((current) => [...current, { id: panelId, title: 'New panel' }])
+    setRows((current) => [...current, { id: rowId, panelId, fields: [] }])
+    setNotice(`${panelId} added. Rows added below will keep joining the last panel.`)
+  }
+
+  const addRowToPanel = (panelId: string) => {
+    const id = `row-${rowSequence.current++}`
+    setRows((current) => {
+      const lastIndexInPanel = current.reduce((found, row, index) => row.panelId === panelId ? index : found, -1)
+      const next = [...current]
+      next.splice(lastIndexInPanel + 1, 0, { id, panelId, fields: [] })
+      return next
+    })
+  }
+
+  const renamePanel = (panelId: string, title: string) => {
+    setPanels((current) => current.map((panel) => panel.id === panelId ? { ...panel, title } : panel))
+  }
+
   const removeRow = (rowId: string) => {
     const row = rows.find((item) => item.id === rowId)
     if (row?.fields.some((field) => field.id === selectedFieldId)) setSelectedFieldId('')
+    const panelId = row?.panelId
     setRows((current) => current.filter((item) => item.id !== rowId))
+    if (panelId && !rows.some((item) => item.id !== rowId && item.panelId === panelId)) {
+      setPanels((current) => current.filter((panel) => panel.id !== panelId))
+    }
   }
 
   const updateSelected = (changes: Partial<BuilderField>) => {
@@ -266,6 +345,23 @@ export function BuilderApp() {
     updateSelected({ span })
   }
 
+  const commitFieldPath = (rawValue: string) => {
+    if (!selectedField) return
+    const path = rawValue.trim().replace(/^\$\.?/, '')
+    if (!path || !/^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/.test(path)) {
+      setNotice('Absolute path must be dot-separated identifiers, e.g. customer.firstName.')
+      setPathDraft(selectedField.jsonPath)
+      return
+    }
+    const duplicate = rows.flatMap((row) => row.fields).some((field) => field.id !== selectedFieldId && field.path === path)
+    if (duplicate) {
+      setNotice(`Path "${path}" is already used by another field.`)
+      setPathDraft(selectedField.jsonPath)
+      return
+    }
+    updateSelected({ path, jsonPath: `$.${path}` })
+  }
+
   const removeSelected = () => {
     setRows((current) => current.map((row) => ({
       ...row,
@@ -274,92 +370,61 @@ export function BuilderApp() {
     setSelectedFieldId('')
   }
 
-  const reset = () => {
-    fieldSequence.current = 4
-    rowSequence.current = 3
-    setRows(initialRows)
-    setBaseSpec(undefined)
-    setDataSource(exampleData)
-    setSelectedFieldId('field-1')
-    setPendingPayload(undefined)
-    setNotice('Builder reset to the starter layout.')
-  }
-
-  const readImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0]
-    event.currentTarget.value = ''
-    if (!file) return
-    setImportSource(await file.text())
-  }
-
-  const applyCode = () => {
-    const parsed = parseYamlSpec(codeDraft)
+  const applySpecDocument = (document: StructuredDocument): boolean => {
+    const parsed = parseYamlSpec(document.source)
     const diagnostics = parsed.value
       ? [...parsed.diagnostics, ...validateFormSpec(parsed.value)]
       : parsed.diagnostics
     const error = diagnostics.find((diagnostic) => diagnostic.severity === 'error')
     if (!parsed.value || error) {
-      setNotice(`Could not apply YAML: ${error?.message ?? 'invalid AForm spec.'}`)
-      return
+      setNotice(`Could not apply ${document.format.toUpperCase()}: ${error?.message ?? 'invalid AForm spec.'}`)
+      return false
     }
 
     try {
-      const importedRows = formSpecToBuilderRows(parsed.value)
+      const { rows: importedRows, panels: importedPanels } = formSpecToBuilderRows(parsed.value)
       const firstField = importedRows.flatMap((row) => row.fields)[0]
       setRows(importedRows)
+      setPanels(importedPanels)
       setBaseSpec(parsed.value)
       fieldSequence.current = importedRows.reduce((total, row) => total + row.fields.length, 0) + 1
       rowSequence.current = importedRows.length + 1
+      panelSequence.current = importedPanels.length + 1
       setSelectedFieldId(firstField?.id ?? '')
       setPendingPayload(undefined)
       setView('design')
       setInspectorView('properties')
-      setNotice(`YAML applied with ${importedRows.length} row${importedRows.length === 1 ? '' : 's'}.`)
+      setNotice(`${document.format.toUpperCase()} applied with ${importedRows.length} row${importedRows.length === 1 ? '' : 's'}.`)
+      return true
     } catch (error) {
-      setNotice(`Could not apply YAML: ${error instanceof Error ? error.message : 'unsupported layout.'}`)
+      setNotice(`Could not apply ${document.format.toUpperCase()}: ${error instanceof Error ? error.message : 'unsupported layout.'}`)
+      return false
     }
   }
 
-  const compileImportedData = () => {
-    const parsed = parseExampleData(importSource)
-    if (!parsed.value) {
-      setNotice(`Could not import data: ${parsed.error ?? 'invalid JSON or YAML.'}`)
-      return
-    }
+  const applyCode = () => {
+    applySpecDocument(codeDocument)
+  }
 
-    const existingPaths = new Set(importMode === 'merge' ? rows.flatMap((row) => row.fields.map((field) => field.path)) : [])
-    const importedFields = listDataPaths(parsed.value)
-      .filter((node) => !node.branch && !existingPaths.has(internalPath(node.jsonPath)))
-      .map((node) => createField({
-        source: 'data',
-        path: internalPath(node.jsonPath),
-        jsonPath: node.jsonPath,
-        label: node.label,
-        kind: inferFieldKind(node.jsonPath, node.value),
-        sampleValue: node.value,
-      }))
-    const importedRows: BuilderRow[] = []
-    for (const field of importedFields) {
-      const current = importedRows.at(-1)
-      const used = current?.fields.reduce((total, item) => total + item.span, 0) ?? 12
-      if (!current || used + field.span > 12) {
-        importedRows.push({ id: `row-${rowSequence.current++}`, fields: [field] })
-      } else {
-        importedRows[importedRows.length - 1] = { ...current, fields: [...current.fields, field] }
-      }
-    }
+  const importGeneratedSpec = (document: StructuredDocument): boolean => {
+    const applied = applySpecDocument(document)
+    if (applied) setSpecFormat(document.format)
+    return applied
+  }
 
-    setDataSource(importSource)
-    setRows((current) => importMode === 'replace' ? importedRows : [...current, ...importedRows])
-    setBaseSpec(undefined)
-    setSelectedFieldId(importedFields[0]?.id ?? selectedFieldId)
-    setImportOpen(false)
-    setNotice(`${importedFields.length} field${importedFields.length === 1 ? '' : 's'} compiled from imported data.`)
+  const copyData = async () => {
+    try {
+      await navigator.clipboard.writeText(dataDocument.source)
+      setDataCopied(true)
+      window.setTimeout(() => setDataCopied(false), 1400)
+    } catch {
+      setNotice('Clipboard access is unavailable.')
+    }
   }
 
   const copySpec = async () => {
     try {
-      await navigator.clipboard.writeText(specYaml)
+      await navigator.clipboard.writeText(specDocument.source)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1400)
     } catch {
@@ -368,10 +433,12 @@ export function BuilderApp() {
   }
 
   const downloadSpec = () => {
-    const url = URL.createObjectURL(new Blob([specYaml], { type: 'text/yaml' }))
+    const extension = codeDocument.format === 'json' ? 'json' : 'yaml'
+    const source = codeDocument.source || (extension === 'json' ? JSON.stringify(spec, null, 2) : specYaml)
+    const url = URL.createObjectURL(new Blob([source], { type: extension === 'json' ? 'application/json' : 'text/yaml' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = 'form.a-form.yaml'
+    anchor.download = `form.a-form.${extension}`
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -386,12 +453,10 @@ export function BuilderApp() {
           <button className={view === 'code' ? 'active' : ''} type="button" onClick={() => selectView('code')}><Code2 size={15} /> Code (YAML)</button>
           <button className={view === 'preview' ? 'active' : ''} type="button" onClick={() => selectView('preview')}><Eye size={15} /> Preview</button>
         </div>
-        <div className="builder-top-actions">
-          <input ref={importInput} type="file" accept=".yaml,.yml,.json,text/yaml,application/yaml,application/json" hidden onChange={readImportFile} />
-          <button type="button" onClick={() => setImportOpen(true)}><Upload size={15} /> YAML Import / Export</button>
-          <button className="builder-icon-action" type="button" title="Reset builder" aria-label="Reset builder" onClick={reset}><RotateCcw size={15} /></button>
-          <button className="builder-run-action" type="button" onClick={() => selectView('preview')}><Play size={15} /> Run Preview</button>
-        </div>
+        <nav className="builder-external-links" aria-label="External links">
+          <a href="https://github.com/alansferreira/a-form" target="_blank" rel="noreferrer" title="Open AForm on GitHub" aria-label="Open AForm on GitHub"><Github size={15} /></a>
+          <a href="https://www.linkedin.com/in/alansferreira/" target="_blank" rel="noreferrer" title="Open Alan Ferreira on LinkedIn" aria-label="Open Alan Ferreira on LinkedIn"><Linkedin size={15} /></a>
+        </nav>
       </header>
 
       <section className="builder-toolbar">
@@ -407,46 +472,54 @@ export function BuilderApp() {
 
       <section className="builder-workspace">
         <aside className="builder-sources">
-          <div className="builder-panel-heading"><div><Database size={15} /><strong>Data source</strong></div><span>YAML</span></div>
-          <div className="builder-data-editor">
-            <Editor
-              aria-label="Example YAML data"
-              language="yaml"
-              path="example-data.yaml"
-              theme="a-form-dark"
-              value={dataSource}
-              onChange={(value) => setDataSource(value ?? '')}
-              options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 11, lineHeight: 18, minimap: { enabled: false }, padding: { top: 10 }, scrollBeyondLastLine: false, tabSize: 2 }}
-            />
+          <div className="builder-source-tabs" aria-label="Source view">
+            <button className={sourceView === 'data' ? 'active' : ''} type="button" onClick={() => setSourceView('data')}><Database size={14} /> Data Source</button>
+            <button className={sourceView === 'fields' ? 'active' : ''} type="button" onClick={() => setSourceView('fields')}><List size={14} /> Available fields <small>{dataPaths.filter((node) => !node.branch).length}</small></button>
           </div>
-          <div className="builder-source-section">
-            <div className="builder-section-label"><span>Available paths</span><small>{dataPaths.filter((node) => !node.branch).length}</small></div>
-            {parsedData.error ? <p className="builder-data-error">{parsedData.error}</p> : (
-              <div className="builder-data-tree">
-                {dataPaths.map((node) => {
-                  const kind = inferFieldKind(node.jsonPath, node.value)
-                  const Icon = kindIcons[kind]
-                  const payload: PalettePayload = { source: 'data', path: internalPath(node.jsonPath), jsonPath: node.jsonPath, label: node.label, kind, sampleValue: node.value }
-                  return node.branch ? (
-                    <div className="builder-tree-group" key={node.jsonPath} style={{ paddingLeft: node.depth * 12 }}><ChevronRight size={12} /><span>{node.label}</span></div>
-                  ) : (
-                    <button
-                      className={`builder-tree-leaf ${pendingPayload && payloadKey(pendingPayload) === node.jsonPath ? 'selected' : ''}`}
-                      draggable
-                      key={node.jsonPath}
-                      style={{ paddingLeft: 12 + node.depth * 12 }}
-                      type="button"
-                      onClick={() => setPendingPayload(payload)}
-                      onDragStart={(event) => beginDrag(event, payload)}
-                      title={`Drag ${node.jsonPath}`}
-                    >
-                      <Icon size={13} /><span>{node.label}<small>{node.jsonPath}</small></span><span className="builder-touch-handle" {...bindTouchHandle(payload)}><GripVertical size={13} /></span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          {sourceView === 'data' ? (
+            <div className="builder-data-editor">
+              <StructuredEditor
+                document={dataDocument}
+                label="Example data"
+                path="example-data.yaml"
+                theme="a-form-dark"
+                onChange={setDataDocument}
+                toolbarActions={<button type="button" title={`Copy ${dataDocument.format.toUpperCase()}`} aria-label={`Copy ${dataDocument.format.toUpperCase()}`} onClick={copyData}>{dataCopied ? <Check size={14} /> : <Clipboard size={14} />}</button>}
+                options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 11, lineHeight: 18, minimap: { enabled: false }, padding: { top: 10 }, scrollBeyondLastLine: false, tabSize: 2 }}
+              />
+            </div>
+          ) : (
+            <div className="builder-source-section">
+              <div className="builder-section-label"><span>Schema fields</span><small>{dataPaths.filter((node) => !node.branch).length}</small></div>
+              {parsedData.error ? <p className="builder-data-error">{parsedData.error}</p> : (
+                <div className="builder-data-tree">
+                  {dataPaths.map((node) => {
+                    const kind = inferFieldKind(node.jsonPath, node.value)
+                    const Icon = kindIcons[kind]
+                    const payload: PalettePayload = { source: 'data', path: internalPath(node.jsonPath), jsonPath: node.jsonPath, label: node.label, kind, sampleValue: node.value }
+                    const isPlaced = placedPaths.has(internalPath(node.jsonPath))
+                    return node.branch ? (
+                      <div className="builder-tree-group" key={node.jsonPath} style={{ paddingLeft: node.depth * 12 }}><ChevronRight size={12} /><span>{node.label}</span></div>
+                    ) : (
+                      <button
+                        className={`builder-tree-leaf ${isPlaced ? 'placed' : pendingPayload && payloadKey(pendingPayload) === node.jsonPath ? 'selected' : ''}`}
+                        disabled={isPlaced}
+                        draggable={!isPlaced}
+                        key={node.jsonPath}
+                        style={{ paddingLeft: 12 + node.depth * 12 }}
+                        type="button"
+                        onClick={() => !isPlaced && setPendingPayload(payload)}
+                        onDragStart={(event) => !isPlaced && beginDrag(event, payload)}
+                        title={isPlaced ? `${node.jsonPath} is already in the form` : `Drag ${node.jsonPath}`}
+                      >
+                        <Icon size={13} /><span>{node.label}<small>{node.jsonPath}</small></span>{isPlaced ? <em><Check size={11} /> Added</em> : <span className="builder-touch-handle" {...bindTouchHandle(payload)}><GripVertical size={13} /></span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           <div className="builder-source-section builder-field-source">
             <div className="builder-section-label"><span>Field types</span><small>{FIELD_KINDS.length}</small></div>
             <div className="builder-field-palette">
@@ -472,65 +545,105 @@ export function BuilderApp() {
           <div className="builder-stage-heading">
             <div><strong>{view === 'design' ? 'User Registration Flow' : view === 'code' ? 'AForm specification' : 'Live preview'}</strong><span>{view === 'design' ? 'Structured 12-column responsive layout' : `${rows.flatMap((row) => row.fields).length} fields`}</span></div>
             {view === 'design' && <button type="button" onClick={addRow}><Plus size={15} /> Add row</button>}
-            {view === 'code' && <button type="button" onClick={applyCode}><Check size={15} /> Apply YAML</button>}
+            {view === 'code' && <button type="button" onClick={applyCode}><Check size={15} /> Apply {codeDocument.format.toUpperCase()}</button>}
+            {view === 'preview' && (
+              <label className="builder-theme-control">
+                <Palette size={15} />
+                <span>Theme</span>
+                <select value={previewTheme} onChange={(event) => setPreviewTheme(event.target.value as PreviewTheme)}>
+                  {previewThemes.map((theme) => <option value={theme.id} key={theme.id}>{theme.label}</option>)}
+                </select>
+              </label>
+            )}
           </div>
           {view === 'design' ? (
             <div className="builder-grid-canvas">
               <div className="builder-grid-ruler">{Array.from({ length: 12 }, (_, index) => <span key={index}>{index + 1}</span>)}</div>
-              {rows.map((row, rowIndex) => {
-                const used = row.fields.reduce((total, field) => total + field.span, 0)
-                return (
-                  <div className="builder-row-wrap" key={row.id}>
-                    <div className="builder-row-meta"><span>ROW {String(rowIndex + 1).padStart(2, '0')}</span><small>{used}/12</small><button type="button" title="Remove row" aria-label={`Remove row ${rowIndex + 1}`} onClick={() => removeRow(row.id)}><Trash2 size={13} /></button></div>
-                    <div
-                      className={`builder-grid-row ${touchDrag?.target?.rowId === row.id ? 'touch-target' : ''}`}
-                      data-builder-row-id={row.id}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => dropOnRow(event, row.id)}
-                    >
-                      <div className="builder-slot-layer" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
-                      <div className="builder-drop-layer">
-                        {Array.from({ length: 12 }, (_, slot) => (
-                          <button key={slot} type="button" aria-label={`Place in row ${rowIndex + 1}, column ${slot + 1}`} onClick={() => pendingPayload && placeField(pendingPayload, row.id, slot)} />
-                        ))}
-                      </div>
-                      {touchDrag?.target?.rowId === row.id && <div className="builder-touch-slot" style={{ left: `${touchDrag.target.slot * (100 / 12)}%`, width: `${100 / 12}%` }} />}
-                      <div className="builder-fields-layer">
-                        {row.fields.map((field) => {
-                          const Icon = kindIcons[field.kind]
-                          const payload: PalettePayload = { source: 'canvas', fieldId: field.id, label: field.label, kind: field.kind }
-                          return (
-                            <button
-                              className={`builder-field-block ${selectedFieldId === field.id ? 'selected' : ''}`}
-                              draggable
-                              key={field.id}
-                              style={{ gridColumn: `span ${field.span}` }}
-                              type="button"
-                              onClick={() => { setSelectedFieldId(field.id); setInspectorView('properties') }}
-                              onDragStart={(event) => beginDrag(event, payload)}
-                            >
-                              <span className="builder-touch-handle builder-field-grip" {...bindTouchHandle(payload)}><GripVertical size={14} /></span>
-                              <Icon size={17} />
-                              <span><strong>{field.label}</strong><small>{field.jsonPath}</small></span>
-                              <em>{field.span}</em>
-                            </button>
-                          )
-                        })}
-                        {row.fields.length === 0 && <div className="builder-empty-row"><Plus size={16} /> Drop a data path or field type</div>}
+              {groupRowsByPanel(rows).map((group) => {
+                const rowElements = group.rows.map((row) => {
+                  const rowIndex = rows.indexOf(row)
+                  const used = row.fields.reduce((total, field) => total + field.span, 0)
+                  const gridColumns = fieldGridColumns(row.fields)
+                  return (
+                    <div className="builder-row-wrap" key={row.id}>
+                      <div className="builder-row-meta"><span>ROW {String(rowIndex + 1).padStart(2, '0')}</span><small>{used}/12</small><button type="button" title="Remove row" aria-label={`Remove row ${rowIndex + 1}`} onClick={() => removeRow(row.id)}><Trash2 size={13} /></button></div>
+                      <div
+                        className={`builder-grid-row ${touchDrag?.target?.rowId === row.id ? 'touch-target' : ''}`}
+                        data-builder-row-id={row.id}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => dropOnRow(event, row.id)}
+                      >
+                        <div className="builder-slot-layer" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
+                        <div className="builder-drop-layer">
+                          {Array.from({ length: 12 }, (_, slot) => (
+                            <button key={slot} type="button" aria-label={`Place in row ${rowIndex + 1}, column ${slot + 1}`} onClick={() => pendingPayload && placeField(pendingPayload, row.id, slot)} />
+                          ))}
+                        </div>
+                        {touchDrag?.target?.rowId === row.id && <div className="builder-touch-slot" style={{ left: `${touchDrag.target.slot * (100 / 12)}%`, width: `${100 / 12}%` }} />}
+                        <div className="builder-fields-layer">
+                          {row.fields.map((field) => {
+                            const Icon = kindIcons[field.kind]
+                            const payload: PalettePayload = { source: 'canvas', fieldId: field.id, label: field.label, kind: field.kind }
+                            return (
+                              <button
+                                className={`builder-field-block ${selectedFieldId === field.id ? 'selected' : ''}`}
+                                draggable
+                                key={field.id}
+                                style={{ gridColumn: gridColumns[field.id] }}
+                                type="button"
+                                onClick={() => { setSelectedFieldId(field.id); setInspectorView('properties') }}
+                                onDragStart={(event) => beginDrag(event, payload)}
+                              >
+                                <span className="builder-touch-handle builder-field-grip" {...bindTouchHandle(payload)}><GripVertical size={14} /></span>
+                                <Icon size={17} />
+                                <span><strong>{field.label}</strong><small>{field.jsonPath}</small></span>
+                                <em>{field.span}</em>
+                              </button>
+                            )
+                          })}
+                          {row.fields.length === 0 && <div className="builder-empty-row"><Plus size={16} /> Drop a data path or field type</div>}
+                        </div>
                       </div>
                     </div>
+                  )
+                })
+
+                if (!group.panelId) return rowElements
+
+                const panel = panels.find((item) => item.id === group.panelId)
+                return (
+                  <div className="builder-panel-wrap" key={group.panelId}>
+                    <div className="builder-panel-meta">
+                      <input
+                        aria-label="Panel title"
+                        value={panel?.title ?? ''}
+                        onChange={(event) => renamePanel(group.panelId!, event.target.value)}
+                      />
+                      <button type="button" title="Add row to this panel" onClick={() => addRowToPanel(group.panelId!)}><Plus size={13} /></button>
+                    </div>
+                    <div className="builder-panel-frame">{rowElements}</div>
                   </div>
                 )
               })}
-              <button className="builder-add-row" type="button" onClick={addRow}><Plus size={16} /> Add grid row</button>
+              <div className="builder-canvas-actions">
+                <button className="builder-add-row" type="button" onClick={addRow}><Plus size={16} /> Add grid row</button>
+                <button className="builder-add-row" type="button" onClick={addPanel}><Rows3 size={16} /> Add panel</button>
+              </div>
             </div>
           ) : view === 'code' ? (
             <div className="builder-code-stage">
-              <div className="builder-code-heading"><span>form.a-form.yaml</span><button type="button" onClick={downloadSpec}><Download size={14} /> Download</button></div>
-              <Editor aria-label="Editable AForm YAML" language="yaml" path="playground-v2-form.a-form.yaml" theme="a-form-dark" value={codeDraft} onChange={(value) => setCodeDraft(value ?? '')} options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }} />
+              <StructuredEditor
+                document={codeDocument}
+                label="AForm schema"
+                path="form.a-form.yaml"
+                theme="a-form-dark"
+                onChange={setCodeDocument}
+                toolbarActions={<button type="button" onClick={downloadSpec}><Download size={14} /> Download</button>}
+                options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }}
+              />
             </div>
           ) : (
-            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} /></div>
+            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} /></div>
           )}
         </section>
 
@@ -541,21 +654,61 @@ export function BuilderApp() {
           </div>
           {inspectorView === 'spec' ? (
             <div className="builder-spec-panel">
-              <div className="builder-spec-actions">
-                <span>form.a-form.yaml</span>
-                <button type="button" title="Copy YAML" aria-label="Copy YAML" onClick={copySpec}>{copied ? <Check size={14} /> : <Clipboard size={14} />}</button>
-              </div>
-              <Editor aria-label="Generated AForm YAML" language="yaml" path="generated-form.a-form.yaml" theme="a-form-dark" value={specYaml} options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 10, lineHeight: 17, minimap: { enabled: false }, padding: { top: 12 }, readOnly: true, scrollBeyondLastLine: false }} />
+              <StructuredEditor
+                document={specDocument}
+                label="Generated AForm spec"
+                path="generated-form.a-form.yaml"
+                theme="a-form-dark"
+                onChange={() => undefined}
+                onImport={importGeneratedSpec}
+                toolbarActions={<button type="button" title={`Copy ${specFormat.toUpperCase()}`} aria-label={`Copy ${specFormat.toUpperCase()}`} onClick={copySpec}>{copied ? <Check size={14} /> : <Clipboard size={14} />}</button>}
+                options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 10, lineHeight: 17, minimap: { enabled: false }, padding: { top: 12 }, readOnly: true, scrollBeyondLastLine: false }}
+              />
             </div>
           ) : selectedField ? (
             <div className="builder-properties">
               <div className="builder-selection-heading"><span className="builder-kind-icon">{(() => { const Icon = kindIcons[selectedField.kind]; return <Icon size={17} /> })()}</span><div><strong>{selectedField.label}</strong><small>{selectedField.kind} field</small></div></div>
               <label>Label<input value={selectedField.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
-              <label>Absolute path<input value={selectedField.jsonPath} readOnly /></label>
+              <label>Absolute path<input
+                value={pathDraft}
+                onChange={(event) => setPathDraft(event.target.value)}
+                onBlur={(event) => commitFieldPath(event.target.value)}
+                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitFieldPath(pathDraft) } }}
+              /></label>
               <label>Field type<select value={selectedField.kind} onChange={(event) => updateSelected({ kind: event.target.value as FieldKind })}>{FIELD_KINDS.map((item) => <option value={item.kind} key={item.kind}>{item.label}</option>)}</select></label>
+              {selectedField.kind === 'range' && (
+                <fieldset>
+                  <legend>Range</legend>
+                  <div className="builder-range-control">
+                    <label>Min<input type="number" value={selectedField.rangeMin ?? 0} onChange={(event) => updateSelected({ rangeMin: Number(event.target.value) })} /></label>
+                    <label>Max<input type="number" value={selectedField.rangeMax ?? 100} onChange={(event) => updateSelected({ rangeMax: Number(event.target.value) })} /></label>
+                    <label>Step<input type="number" value={selectedField.rangeStep ?? 1} onChange={(event) => updateSelected({ rangeStep: Number(event.target.value) })} /></label>
+                  </div>
+                </fieldset>
+              )}
+              {(selectedField.kind === 'autocomplete' || selectedField.kind === 'asyncOptions') && (
+                <fieldset>
+                  <legend>{selectedField.kind === 'asyncOptions' ? 'Async source' : 'Autocomplete source'}</legend>
+                  <label>Source URL (Mustache template)<input
+                    placeholder="/api/cities?country={{customer.country}}"
+                    value={selectedField.optionsSource ?? ''}
+                    onChange={(event) => updateSelected({ optionsSource: event.target.value })}
+                  /></label>
+                  <label>Value key<input placeholder="id" value={selectedField.optionsValueKey ?? ''} onChange={(event) => updateSelected({ optionsValueKey: event.target.value })} /></label>
+                  <label>Label key<input placeholder="name" value={selectedField.optionsLabelKey ?? ''} onChange={(event) => updateSelected({ optionsLabelKey: event.target.value })} /></label>
+                  <label>Item label template<input placeholder="{{item.name}} ({{item.code}})" value={selectedField.optionsItemTemplate ?? ''} onChange={(event) => updateSelected({ optionsItemTemplate: event.target.value })} /></label>
+                </fieldset>
+              )}
               <fieldset>
                 <legend>Column span</legend>
                 <div className="builder-span-control">{[3, 4, 6, 8, 12].map((span) => <button className={selectedField.span === span ? 'active' : ''} type="button" key={span} onClick={() => updateSpan(span)}>{span}</button>)}</div>
+              </fieldset>
+              <fieldset>
+                <legend>Alignment</legend>
+                <div className="builder-span-control">
+                  <button className={selectedField.align === 'start' ? 'active' : ''} type="button" onClick={() => updateSelected({ align: 'start' })}>Left</button>
+                  <button className={selectedField.align === 'end' ? 'active' : ''} type="button" onClick={() => updateSelected({ align: 'end' })}>Right</button>
+                </div>
               </fieldset>
               <div className="builder-property-summary"><span>Desktop <strong>{selectedField.span}/12</strong></span><span>Tablet <strong>{selectedField.span}/12</strong></span><span>Mobile <strong>12/12</strong></span></div>
               <button className="builder-delete-field" type="button" onClick={removeSelected}><Trash2 size={14} /> Remove field</button>
@@ -565,35 +718,6 @@ export function BuilderApp() {
           )}
         </aside>
       </section>
-      {importOpen && (
-        <div className="builder-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setImportOpen(false)}>
-          <section className="builder-import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
-            <header>
-              <span className="builder-modal-icon"><Braces size={19} /></span>
-              <div><strong id="import-title">Import schema or data</strong><small>Paste JSON or YAML to map reactive fields automatically</small></div>
-              <button type="button" title="Close" aria-label="Close import dialog" onClick={() => setImportOpen(false)}><X size={17} /></button>
-            </header>
-            <div className="builder-import-tools">
-              <span><Code2 size={14} /> Paste code (JSON / YAML)</span>
-              <button type="button" onClick={() => importInput.current?.click()}><FileUp size={14} /> Upload file</button>
-              <em><Check size={13} /> Syntax checked on import</em>
-            </div>
-            <div className="builder-import-body">
-              <label htmlFor="import-source">schema_import.yaml</label>
-              <textarea id="import-source" spellCheck={false} value={importSource} onChange={(event) => setImportSource(event.target.value)} />
-              <fieldset>
-                <legend>Import mode</legend>
-                <label className={importMode === 'replace' ? 'selected' : ''}><input type="radio" name="import-mode" checked={importMode === 'replace'} onChange={() => setImportMode('replace')} /><span><strong>Replace current schema</strong><small>Clear mapped fields and rebuild the form.</small></span></label>
-                <label className={importMode === 'merge' ? 'selected' : ''}><input type="radio" name="import-mode" checked={importMode === 'merge'} onChange={() => setImportMode('merge')} /><span><strong>Merge with existing fields</strong><small>Keep the canvas and add newly detected paths.</small></span></label>
-              </fieldset>
-            </div>
-            <footer>
-              <span><Database size={15} /> {parseExampleData(importSource).value ? `${listDataPaths(parseExampleData(importSource).value!).filter((node) => !node.branch).length} fields detected` : 'Waiting for valid data'}</span>
-              <div><button type="button" onClick={() => setImportOpen(false)}>Cancel</button><button className="primary" type="button" onClick={compileImportedData}><Upload size={15} /> Load & compile fields</button></div>
-            </footer>
-          </section>
-        </div>
-      )}
       {touchDrag && <TouchDragOverlay drag={touchDrag} />}
     </main>
   )

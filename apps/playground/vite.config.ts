@@ -7,4 +7,7 @@ export default defineConfig({
   base: './',
   plugins: [react(), viteSingleFile()],
   publicDir: false,
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
 })

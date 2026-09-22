@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: npm i
 
-      - name: Build playground-v2
+      - name: Build playground
         run: npm run build
         # run: npm run build --workspace=a-form-playground-v2
 
@@ -51,7 +51,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload entire repository
-          path: 'apps/playground-v2/dist/'
+          path: 'apps/playground/dist/'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
