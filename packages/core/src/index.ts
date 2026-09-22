@@ -57,7 +57,17 @@ export interface RowNode {
   readonly children: readonly ColumnNode[];
 }
 
-export type LayoutNode = RowNode | ColumnNode | FieldNode;
+export interface PanelNode {
+  readonly type: "panel";
+  readonly id?: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly collapsible?: boolean;
+  readonly defaultCollapsed?: boolean;
+  readonly children: readonly RowNode[];
+}
+
+export type LayoutNode = RowNode | ColumnNode | FieldNode | PanelNode;
 
 export type AsyncValidationTrigger = "change" | "blur" | "submit" | "manual";
 export type AsyncValidationFailurePolicy = "block" | "warning";
@@ -78,7 +88,7 @@ export interface FormSpec {
   readonly version: "1";
   readonly schema: JsonObject;
   readonly uiSchema?: JsonObject;
-  readonly layout: readonly RowNode[];
+  readonly layout: readonly (RowNode | PanelNode)[];
   readonly validations?: {
     readonly async?: readonly AsyncValidationRuleSpec[];
   };
@@ -106,6 +116,11 @@ export interface NormalizedRowNode extends Omit<RowNode, "children" | "id"> {
   readonly children: readonly NormalizedColumnNode[];
 }
 
+export interface NormalizedPanelNode extends Omit<PanelNode, "children" | "id"> {
+  readonly id: string;
+  readonly children: readonly NormalizedRowNode[];
+}
+
 export interface NormalizedFormSpec extends Omit<FormSpec, "layout"> {
-  readonly layout: readonly NormalizedRowNode[];
+  readonly layout: readonly (NormalizedRowNode | NormalizedPanelNode)[];
 }

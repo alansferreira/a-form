@@ -166,6 +166,100 @@ describe("AForm", () => {
     expect(rowOf("email")).not.toBe(rowOf("notes"));
   });
 
+  it("renders a panel frame and tags its fields with the panel id", () => {
+    const panelSpec: NormalizedFormSpec = {
+      ...spec,
+      layout: [{
+        type: "panel",
+        id: "contact",
+        title: "Contact info",
+        children: [{
+          type: "row",
+          id: "contact-row",
+          children: [{
+            type: "column",
+            id: "contact-column",
+            span: { mobile: 12, tablet: 12, desktop: 12 },
+            align: "start",
+            children: [{ type: "field", id: "email", path: "email" }],
+          }],
+        }],
+      }],
+    };
+
+    const html = renderToStaticMarkup(<AForm spec={panelSpec} viewport="desktop" />);
+
+    expect(html).toContain('data-a-form-panel="contact"');
+    expect(html).toContain('class="a-form-panel-title" id="a-form-panel-title-contact">Contact info');
+    expect(html).toMatch(/data-a-form-field="email" data-a-form-panel="contact"/);
+  });
+
+  it("renders ui:helpTemplate interpolated against the whole form's data", () => {
+    const templatedSpec: NormalizedFormSpec = {
+      ...spec,
+      uiSchema: { email: { "ui:helpTemplate": "We'll email {{name}} at this address." } },
+    };
+
+    const html = renderToStaticMarkup(<AForm spec={templatedSpec} viewport="desktop" value={{ name: "Ana" }} />);
+
+    expect(html).toContain("We&#x27;ll email Ana at this address.");
+  });
+
+  it("renders the default date/time/range widgets via ui:widget", () => {
+    const widgetSpec: NormalizedFormSpec = {
+      ...spec,
+      schema: {
+        type: "object",
+        properties: {
+          birthday: { type: "string", title: "Birthday" },
+          score: { type: "number", title: "Score" },
+        },
+      },
+      uiSchema: {
+        birthday: { "ui:widget": "date" },
+        score: { "ui:widget": "range", "ui:options": { min: 0, max: 10, step: 1 } },
+      },
+      layout: [{
+        type: "row",
+        id: "main",
+        children: [
+          { type: "column", id: "c1", span: { mobile: 12, tablet: 12, desktop: 6 }, align: "start", children: [{ type: "field", id: "birthday", path: "birthday" }] },
+          { type: "column", id: "c2", span: { mobile: 12, tablet: 12, desktop: 6 }, align: "start", children: [{ type: "field", id: "score", path: "score" }] },
+        ],
+      }],
+    };
+
+    const html = renderToStaticMarkup(<AForm spec={widgetSpec} viewport="desktop" />);
+
+    expect(html).toContain('type="date"');
+    expect(html).toMatch(/max="10" min="0" step="1" type="range"/);
+  });
+
+  it("renders the default asyncOptions widget with a static source list", () => {
+    const widgetSpec: NormalizedFormSpec = {
+      ...spec,
+      schema: {
+        type: "object",
+        properties: { country: { type: "string", title: "Country" } },
+      },
+      uiSchema: {
+        country: {
+          "ui:widget": "asyncOptions",
+          "ui:options": { source: [{ id: "BR", name: "Brazil" }], valueKey: "id", labelKey: "name" },
+        },
+      },
+      layout: [{
+        type: "row",
+        id: "main",
+        children: [{ type: "column", id: "c1", span: { mobile: 12, tablet: 12, desktop: 12 }, align: "start", children: [{ type: "field", id: "country", path: "country" }] }],
+      }],
+    };
+
+    const html = renderToStaticMarkup(<AForm spec={widgetSpec} viewport="desktop" />);
+
+    expect(html).toContain('<option value="Brazil"');
+  });
+
   it("runs blur and submit validation, displays issues, and blocks invalid submit", async () => {
     const asyncSpec: NormalizedFormSpec = {
       ...spec,

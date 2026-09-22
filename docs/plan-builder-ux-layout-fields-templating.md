@@ -65,7 +65,7 @@ widgets. Scope is limited to `playground-v2` (not v1/original playground).
 
 ---
 
-## Phase 3 — `panel` layout node (visual grouping container)
+## Phase 3 — `panel` layout node (visual grouping container) ✅ DONE (visual-only, no per-adapter chrome yet)
 
 1. **Core type**: add `PanelNode` to [packages/core/src/index.ts](../packages/core/src/index.ts#L56):
    `{ type: "panel"; id?: string; title?: string; description?: string; collapsible?: boolean; defaultCollapsed?: boolean; children: readonly RowNode[] }`.
@@ -110,29 +110,33 @@ widgets. Scope is limited to `playground-v2` (not v1/original playground).
 
 ---
 
-## Phase 5 — New field kinds (date, time, datetime, range slider, autocomplete, async options)
+## Phase 5 — New field kinds (date, time, datetime, range slider, autocomplete, async options) ✅ DONE (default widgets; per-adapter rich pickers are a follow-up)
 *Depends on Phase 4 for autocomplete/async item-label templating; independent of Phases 2-3.*
+
+**Update:** `ui:helpTemplate` (Mustache help text interpolated against the whole form's data, via `a-form-template`) is done ✅ — implemented directly in `packages/react/src/AForm.tsx`'s `FieldTemplate`, documented in `packages/react/README.md`.
+
+**Revised widget strategy:** instead of implementing date/time/datetime/range/autocomplete/asyncOptions widgets separately in all 4 presentation packages up front, ship **default widgets once in `packages/react`** (native HTML5 inputs for pickers/range; a small headless combobox for autocomplete/asyncOptions using `a-form-template` for the `source` URL). `AForm` merges `{ ...defaultWidgets, ...presentationAdapter?.widgets }` so any adapter can still override with a richer library (MUI pickers/Slider/Autocomplete, react-datepicker, rc-slider, etc.) later without changing the contract. This avoids a large multi-package rollout while keeping every new field kind usable immediately across all adapters.
 
 1. **Builder model** ([apps/playground-v2/src/builder/model.ts](../apps/playground-v2/src/builder/model.ts#L4-L46)): extend `FieldKind` union with `'date' | 'time' | 'datetime' | 'range' | 'autocomplete' | 'asyncOptions'`, add entries to `FIELD_KINDS` palette, extend `fieldKindFromSpec()` (detection: `format: date/time/date-time` → picker kinds; `ui:widget: range` → range; `ui:widget: autocomplete` + no source → autocomplete; `+ ui:options.source` → asyncOptions), and `schemaForField()` to emit the right JSON Schema (`format`, `type: number` + min/max for range) + `uiSchema` (`ui:widget`, `ui:options`).
 2. **Inspector UI**: add fields for range `min`/`max`/`step`; autocomplete/async `source` URL (template string, rendered via Phase 4 at request time with current form values as context), `valueKey`/`labelKey` for mapping response items, and an item-label template string (Mustache) for custom rendering.
 3. **Schema**: no structural schema.json change needed (uses existing generic `uiOptions`/`ui:widget` free-form slots), but document the new `ui:widget` values and `ui:options` shape in `docs/`.
-4. **Widget implementations per presentation adapter** (each registers new `widgets` entries keyed by the new `ui:widget` ids):
-   - `presentation-material` — use `@mui/x-date-pickers` (Date/Time/DateTime pickers, needs a date adapter e.g. `date-fns`) for pickers, MUI `Slider` for range, MUI `Autocomplete` (has built-in async `loading`/`onInputChange` support) for autocomplete/async.
-   - `presentation-bootstrap` — no built-in equivalents in `react-bootstrap`; add `react-datepicker` (date/time/datetime) and `rc-slider` (range), plus a small custom combobox (input + listbox) styled with Bootstrap classes for autocomplete/async, using ad-hoc `fetch` per `ui:options.source`.
-   - `presentation-neobrutalism` / `presentation-tailwind` — same `react-datepicker`/`rc-slider` deps (styled via each package's existing custom CSS), plus the same custom combobox approach for autocomplete/async (these packages are already self-contained/custom per Discovery).
-   - All async/autocomplete widgets: on input, render `ui:options.source` template through `packages/template`'s `renderTemplate` with current form data as context to build the request URL, `fetch` it, map response array via `valueKey`/`labelKey` (or a full item template) to options.
-5. **Dependencies**: add `mustache` to `packages/template`; add `@mui/x-date-pickers` + a date adapter to `presentation-material`; add `react-datepicker` + `rc-slider` to `presentation-bootstrap`, `presentation-neobrutalism`, `presentation-tailwind`. Update each `package.json`.
+4. **Default widgets in `packages/react`** (registered once, overridable per adapter):
+   - `date` / `time` / `datetime` → native `<input type="date">` / `type="time"` / `type="datetime-local">`.
+   - `range` → native `<input type="range">` reading `min`/`max`/`step` from `ui:options`.
+   - `autocomplete` / `asyncOptions` → a small combobox widget: static `ui:options.source` array or `{ url, valueKey, labelKey, itemTemplate }`; for URL sources, renders the URL with `renderUrlTemplate` (from `a-form-template`) against the current `formContext.rootFormData`, `fetch`es on input (debounced), maps the response via `valueKey`/`labelKey` or `itemTemplate`.
+   - Per-adapter rich pickers (MUI `@mui/x-date-pickers`/`Slider`/`Autocomplete`, `react-datepicker`, `rc-slider`) remain a documented **follow-up**, not required for the feature to work.
+5. **Dependencies**: none required for the default widgets (native inputs + `fetch`); adapter-specific rich widgets (follow-up) would add `@mui/x-date-pickers`, `react-datepicker`, `rc-slider` as needed.
 
 **Relevant files**
 - `apps/playground-v2/src/builder/model.ts` — `FieldKind`, `FIELD_KINDS`, `fieldKindFromSpec`, `schemaForField`
 - `apps/playground-v2/src/builder/BuilderApp.tsx` — inspector controls for new kinds
-- `packages/presentation-material/src/index.ts`, `presentation-bootstrap/src/index.ts`, `presentation-neobrutalism/src/index.tsx`, `presentation-tailwind/src/index.tsx` — new widget registrations
-- `packages/template/src/index.ts` — consumed by autocomplete/async widgets
+- `packages/react/src/AForm.tsx` / new `packages/react/src/widgets.tsx` — default widgets, merged into the RJSF registry
+- `packages/template/src/index.ts` — consumed by the autocomplete/asyncOptions widget
 - `docs/presentation-adapters.md` — document new `ui:widget` ids and `ui:options` shape
 
 **Verification**
-- Manual per presentation adapter: place each new field kind in the builder, confirm live preview renders correctly; for autocomplete/async, point `source` at a test/mock endpoint and confirm options populate and the template-built URL includes interpolated field values.
-- Unit tests where feasible (e.g. `fieldKindFromSpec`/`schemaForField` mapping for new kinds in the parser/builder test suites, if present).
+- Manual: place each new field kind in the builder, confirm live preview renders correctly; for autocomplete/asyncOptions, point `source` at a test/mock endpoint and confirm options populate and the template-built URL includes interpolated field values.
+- Unit tests: `fieldKindFromSpec`/`schemaForField` mapping for new kinds in the builder model test suite; default widget rendering/behavior in `packages/react`.
 
 ---
 

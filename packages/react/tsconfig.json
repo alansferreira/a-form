@@ -10,6 +10,7 @@
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
   "references": [
     { "path": "../core" },
-    { "path": "../async-validation" }
+    { "path": "../async-validation" },
+    { "path": "../template" }
   ]
 }

@@ -20,10 +20,13 @@
       "$ref": "#/$defs/uiSchemaNode"
     },
     "layout": {
-      "description": "Responsive form layout, organized as rows containing columns.",
+      "description": "Responsive form layout, organized as rows containing columns, optionally grouped into visual panels.",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/row"
+        "oneOf": [
+          { "$ref": "#/$defs/row" },
+          { "$ref": "#/$defs/panel" }
+        ]
       }
     },
     "validations": {
@@ -396,6 +399,10 @@
         "ui:description": { "type": "string" },
         "ui:placeholder": { "type": "string" },
         "ui:help": { "type": "string" },
+        "ui:helpTemplate": {
+          "description": "Mustache template (e.g. '{{person.country}}') rendered against the full form data via a-form-template, replacing ui:help.",
+          "type": "string"
+        },
         "ui:autofocus": { "type": "boolean" },
         "ui:autocomplete": { "type": "string" },
         "ui:autocapitalize": { "type": "string" },
@@ -577,6 +584,38 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/column"
+          }
+        }
+      }
+    },
+    "panel": {
+      "description": "A visual grouping container wrapping one or more rows, rendered with a border and optional title.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "children"],
+      "properties": {
+        "type": {
+          "const": "panel"
+        },
+        "id": {
+          "$ref": "#/$defs/nodeId"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "collapsible": {
+          "type": "boolean"
+        },
+        "defaultCollapsed": {
+          "type": "boolean"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/row"
           }
         }
       }

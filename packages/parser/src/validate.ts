@@ -34,69 +34,77 @@ function schemaHasPath(schema: JsonObject, fieldPath: string): boolean {
 function validateRows(spec: FormSpec, diagnostics: Diagnostic[]): void {
   const seenFields = new Set<string>();
 
-  const visitRows = (rows: readonly RowNode[], path: readonly (number | string)[]): void => {
-    rows.forEach((row, rowIndex) => {
-      const rowPath = [...path, rowIndex];
-      if (row.type !== "row" || !Array.isArray(row.children)) {
-        addError(diagnostics, "YF_LAYOUT_ROW", "A layout row must contain a children array.", rowPath);
+  const visitRow = (row: RowNode, path: readonly (number | string)[]): void => {
+    if (row.type !== "row" || !Array.isArray(row.children)) {
+      addError(diagnostics, "YF_LAYOUT_ROW", "A layout row must contain a children array.", path);
+      return;
+    }
+    let desktopTotal = 0;
+    row.children.forEach((column, columnIndex) => {
+      const columnPath = [...path, "children", columnIndex];
+      if (column.type !== "column" || !Array.isArray(column.children)) {
+        addError(diagnostics, "YF_LAYOUT_COLUMN", "A row may only contain columns.", columnPath);
         return;
       }
-      let desktopTotal = 0;
-      row.children.forEach((column, columnIndex) => {
-        const columnPath = [...rowPath, "children", columnIndex];
-        if (column.type !== "column" || !Array.isArray(column.children)) {
-          addError(diagnostics, "YF_LAYOUT_COLUMN", "A row may only contain columns.", columnPath);
+      const span = typeof column.span === "number" ? { mobile: column.span } : column.span;
+      for (const breakpoint of ["mobile", "tablet", "desktop"] as const) {
+        const value = span?.[breakpoint];
+        if (value !== undefined && (!Number.isInteger(value) || value < 1 || value > 12)) {
+          addError(
+            diagnostics,
+            "YF_LAYOUT_SPAN",
+            `Column ${breakpoint} span must be an integer from 1 to 12.`,
+            [...columnPath, "span", breakpoint],
+          );
+        }
+      }
+      desktopTotal += span?.desktop ?? span?.tablet ?? span?.mobile ?? 12;
+      column.children.forEach((child: ColumnNode["children"][number], childIndex: number) => {
+        const childPath = [...columnPath, "children", childIndex];
+        if (child.type === "row") {
+          visitRow(child, childPath);
           return;
         }
-        const span = typeof column.span === "number" ? { mobile: column.span } : column.span;
-        for (const breakpoint of ["mobile", "tablet", "desktop"] as const) {
-          const value = span?.[breakpoint];
-          if (value !== undefined && (!Number.isInteger(value) || value < 1 || value > 12)) {
-            addError(
-              diagnostics,
-              "YF_LAYOUT_SPAN",
-              `Column ${breakpoint} span must be an integer from 1 to 12.`,
-              [...columnPath, "span", breakpoint],
-            );
-          }
+        if (child.type !== "field" || typeof child.path !== "string" || child.path.length === 0) {
+          addError(diagnostics, "YF_LAYOUT_FIELD", "A column child must be a field or nested row.", childPath);
+          return;
         }
-        desktopTotal += span?.desktop ?? span?.tablet ?? span?.mobile ?? 12;
-        column.children.forEach((child: ColumnNode["children"][number], childIndex: number) => {
-          const childPath = [...columnPath, "children", childIndex];
-          if (child.type === "row") {
-            visitRows([child], childPath);
-            return;
-          }
-          if (child.type !== "field" || typeof child.path !== "string" || child.path.length === 0) {
-            addError(diagnostics, "YF_LAYOUT_FIELD", "A column child must be a field or nested row.", childPath);
-            return;
-          }
-          if (!schemaHasPath(spec.schema, child.path)) {
-            addError(diagnostics, "YF_FIELD_PATH", `Field path '${child.path}' does not exist in schema.`, [...childPath, "path"]);
-          }
-          if (seenFields.has(child.path)) {
-            diagnostics.push({
-              code: "YF_FIELD_DUPLICATE",
-              message: `Field path '${child.path}' appears more than once in the layout.`,
-              severity: "warning",
-              path: [...childPath, "path"],
-            });
-          }
-          seenFields.add(child.path);
-        });
+        if (!schemaHasPath(spec.schema, child.path)) {
+          addError(diagnostics, "YF_FIELD_PATH", `Field path '${child.path}' does not exist in schema.`, [...childPath, "path"]);
+        }
+        if (seenFields.has(child.path)) {
+          diagnostics.push({
+            code: "YF_FIELD_DUPLICATE",
+            message: `Field path '${child.path}' appears more than once in the layout.`,
+            severity: "warning",
+            path: [...childPath, "path"],
+          });
+        }
+        seenFields.add(child.path);
       });
-      if (desktopTotal > 12) {
-        diagnostics.push({
-          code: "YF_LAYOUT_WRAP",
-          message: `Desktop spans total ${desktopTotal}; columns will wrap.`,
-          severity: "warning",
-          path: rowPath,
-        });
-      }
     });
+    if (desktopTotal > 12) {
+      diagnostics.push({
+        code: "YF_LAYOUT_WRAP",
+        message: `Desktop spans total ${desktopTotal}; columns will wrap.`,
+        severity: "warning",
+        path,
+      });
+    }
   };
 
-  visitRows(spec.layout, ["layout"]);
+  spec.layout.forEach((node, index) => {
+    const nodePath = ["layout", index];
+    if (node.type === "panel") {
+      if (!Array.isArray(node.children)) {
+        addError(diagnostics, "YF_LAYOUT_PANEL", "A layout panel must contain a children array.", nodePath);
+        return;
+      }
+      node.children.forEach((row, rowIndex) => visitRow(row, [...nodePath, "children", rowIndex]));
+      return;
+    }
+    visitRow(node, nodePath);
+  });
 }
 
 function validateAsyncRule(spec: FormSpec, rule: AsyncValidationRuleSpec, index: number, diagnostics: Diagnostic[]): void {

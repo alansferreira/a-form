@@ -4,8 +4,10 @@ import type {
   NormalizedColumnNode,
   NormalizedFieldNode,
   NormalizedFormSpec,
+  NormalizedPanelNode,
   NormalizedResponsiveSpan,
   NormalizedRowNode,
+  PanelNode,
   ResponsiveSpan,
   RowNode,
 } from "a-form-core";
@@ -47,6 +49,16 @@ function normalizeColumn(column: ColumnNode, path: string): NormalizedColumnNode
 export function normalizeFormSpec(spec: FormSpec): NormalizedFormSpec {
   return {
     ...spec,
-    layout: spec.layout.map((row, index) => normalizeRow(row, `row-${index + 1}`)),
+    layout: spec.layout.map((node, index) => node.type === "panel"
+      ? normalizePanel(node, `panel-${index + 1}`)
+      : normalizeRow(node, `row-${index + 1}`)),
+  };
+}
+
+function normalizePanel(panel: PanelNode, path: string): NormalizedPanelNode {
+  return {
+    ...panel,
+    id: panel.id ?? path,
+    children: panel.children.map((row, index) => normalizeRow(row, `${path}.row-${index + 1}`)),
   };
 }

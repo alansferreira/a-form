@@ -27,9 +27,12 @@ import type {
   JsonObject,
   JsonValue,
   NormalizedFormSpec,
+  NormalizedPanelNode,
   NormalizedRowNode,
 } from "a-form-core";
-import type { PresentationConfig } from "./presentation.js";
+import { renderTemplate } from "a-form-template";
+import type { PanelTemplateProps, PresentationConfig } from "./presentation.js";
+import { defaultWidgets } from "./widgets.js";
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
 
@@ -68,6 +71,27 @@ interface LayoutFormContext {
   readonly layoutPaths: readonly string[];
   readonly asyncFields: Readonly<Record<string, AsyncFieldState>>;
   readonly presentationFieldTemplate?: ComponentType<FieldTemplateProps>;
+  readonly panels: readonly PanelGroup[];
+  readonly pathToPanel: Readonly<Record<string, string>>;
+  readonly panelFrames: Readonly<Record<string, PanelFramePlacement>>;
+  readonly presentationPanelTemplate?: ComponentType<PanelTemplateProps>;
+  readonly rootFormData: JsonObject;
+}
+
+interface PanelGroup {
+  readonly id: string;
+  readonly title?: string;
+  readonly description?: string;
+}
+
+interface PanelFramePlacement {
+  readonly rowStart: number;
+  readonly rowEnd: number;
+  readonly order: number;
+}
+
+function panelTitleId(panelId: string): string {
+  return `a-form-panel-title-${panelId}`;
 }
 
 interface AsyncFieldState {
@@ -147,6 +171,51 @@ function collectLayout(
   }
 }
 
+function collectFieldPaths(rows: readonly NormalizedRowNode[]): string[] {
+  const paths: string[] = [];
+  for (const row of rows) {
+    for (const column of row.children) {
+      for (const child of column.children) {
+        if (child.type === "field") paths.push(child.path);
+        else paths.push(...collectFieldPaths([child]));
+      }
+    }
+  }
+  return paths;
+}
+
+interface CollectedLayout {
+  readonly placements: Record<string, GridPlacement>;
+  readonly order: Record<string, number>;
+  readonly panels: PanelGroup[];
+  readonly pathToPanel: Record<string, string>;
+  readonly panelFrames: Record<string, PanelFramePlacement>;
+}
+
+function collectFormLayout(layout: readonly (NormalizedRowNode | NormalizedPanelNode)[], viewport: AFormViewport): CollectedLayout {
+  const placements: Record<string, GridPlacement> = {};
+  const order: Record<string, number> = {};
+  const panels: PanelGroup[] = [];
+  const pathToPanel: Record<string, string> = {};
+  const panelFrames: Record<string, PanelFramePlacement> = {};
+  const rowCursor = { current: 1 };
+
+  for (const node of layout) {
+    if (node.type === "panel") {
+      const rowStart = rowCursor.current;
+      const panelOrder = Object.keys(order).length;
+      collectLayout(node.children, viewport, placements, order, rowCursor);
+      panels.push({ id: node.id, ...(node.title !== undefined ? { title: node.title } : {}), ...(node.description !== undefined ? { description: node.description } : {}) });
+      panelFrames[node.id] = { rowStart, rowEnd: rowCursor.current, order: panelOrder };
+      collectFieldPaths(node.children).forEach((path) => { pathToPanel[path] = node.id; });
+    } else {
+      collectLayout([node], viewport, placements, order, rowCursor);
+    }
+  }
+
+  return { placements, order, panels, pathToPanel, panelFrames };
+}
+
 function relationToLayout(path: string, context: LayoutFormContext) {
   return {
     exact: context.layoutPaths.includes(path),
@@ -162,6 +231,10 @@ function createFieldTemplate() {
     const relation = relationToLayout(path, context);
     const asyncState = context.asyncFields[path];
     const AdapterFieldTemplate = context.presentationFieldTemplate;
+    const helpTemplate = (props.uiSchema as Record<string, unknown> | undefined)?.["ui:helpTemplate"];
+    const templatedProps = typeof helpTemplate === "string"
+      ? { ...props, help: <>{renderTemplate(helpTemplate, context.rootFormData)}</> }
+      : props;
 
     if (props.hidden) return <div className="a-form-hidden-field" hidden>{props.children}</div>;
     if (!relation.exact && !relation.ancestor && !relation.descendant) return null;
@@ -180,9 +253,10 @@ function createFieldTemplate() {
       <div
         className={`a-form-field ${relation.exact ? "a-form-layout-field" : "a-form-nested-field"} ${props.classNames ?? ""}`}
         data-a-form-field={relation.exact ? path : undefined}
+        data-a-form-panel={relation.exact ? context.pathToPanel[path] : undefined}
         style={style}
       >
-        {AdapterFieldTemplate ? <AdapterFieldTemplate {...props} /> : renderDefaultFieldContents(props)}
+        {AdapterFieldTemplate ? <AdapterFieldTemplate {...templatedProps} /> : renderDefaultFieldContents(templatedProps)}
         {asyncState?.status === "pending" && (
           <span className="a-form-async-status" role="status">Validating...</span>
         )}
@@ -221,10 +295,20 @@ function renderDefaultFieldContents(props: FieldTemplateProps): ReactNode {
   );
 }
 
+function DefaultPanelTemplate({ id, title, description }: PanelTemplateProps): ReactNode {
+  return (
+    <div className="a-form-panel-frame">
+      {title && <span className="a-form-panel-title" id={panelTitleId(id)}>{title}</span>}
+      {description && <span className="a-form-panel-description">{description}</span>}
+    </div>
+  );
+}
+
 function createObjectFieldTemplate() {
   return function ObjectFieldTemplate(props: ObjectFieldTemplateProps) {
     const path = props.fieldPathId.path.join(".");
-    const relation = relationToLayout(path, props.registry.formContext as LayoutFormContext);
+    const context = props.registry.formContext as LayoutFormContext;
+    const relation = relationToLayout(path, context);
     const options = getUiOptions(props.uiSchema);
     const TitleFieldTemplate = getTemplate("TitleFieldTemplate", props.registry, options);
     const DescriptionFieldTemplate = getTemplate("DescriptionFieldTemplate", props.registry, options);
@@ -261,6 +345,21 @@ function createObjectFieldTemplate() {
           />
         )}
         {(props.readonly || props.disabled || !showMetadata) && props.optionalDataControl}
+        {path === "" && context.panels.map((panel) => {
+          const frame = context.panelFrames[panel.id];
+          if (!frame) return null;
+          const PanelComponent = context.presentationPanelTemplate ?? DefaultPanelTemplate;
+          return (
+            <div
+              key={panel.id}
+              className="a-form-panel"
+              data-a-form-panel={panel.id}
+              style={{ gridColumn: "1 / 13", gridRow: `${frame.rowStart} / ${frame.rowEnd}`, order: frame.order, pointerEvents: "none" } as CSSProperties}
+            >
+              <PanelComponent id={panel.id} {...(panel.title !== undefined ? { title: panel.title } : {})} {...(panel.description !== undefined ? { description: panel.description } : {})} />
+            </div>
+          );
+        })}
         {props.properties.map(({ content, name }) => <div className="a-form-property" key={name} style={{ display: "contents" }}>{content}</div>)}
         {canExpand(props.schema, props.uiSchema, props.formData) && (
           <AddButton
@@ -372,9 +471,7 @@ export function AForm({
     }, debounceMs));
   };
 
-  const placements: Record<string, GridPlacement> = {};
-  const order: Record<string, number> = {};
-  collectLayout(spec.layout, viewport, placements, order);
+  const { placements, order, panels, pathToPanel, panelFrames } = collectFormLayout(spec.layout, viewport);
   const asyncFields: Record<string, AsyncFieldState> = {};
   Object.values(records).forEach(({ fieldPath, result }) => {
     const previous = asyncFields[fieldPath];
@@ -396,8 +493,15 @@ export function AForm({
     order,
     layoutPaths: Object.keys(placements),
     asyncFields,
+    panels,
+    pathToPanel,
+    panelFrames,
+    rootFormData: value ?? {},
     ...(presentationAdapter?.templates?.FieldTemplate
       ? { presentationFieldTemplate: presentationAdapter.templates.FieldTemplate }
+      : {}),
+    ...(presentationAdapter?.templates?.PanelTemplate
+      ? { presentationPanelTemplate: presentationAdapter.templates.PanelTemplate }
       : {}),
   };
   const extraErrors: ErrorSchema = {};
@@ -474,7 +578,7 @@ export function AForm({
         onSubmit?.(submittedValue, event);
       }}
       {...(presentationAdapter?.fields ? { fields: presentationAdapter.fields } : {})}
-      {...(presentationAdapter?.widgets ? { widgets: presentationAdapter.widgets } : {})}
+      widgets={{ ...defaultWidgets, ...presentationAdapter?.widgets }}
       templates={{
         ...adapterTemplates,
         FieldTemplate,

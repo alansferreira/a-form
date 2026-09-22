@@ -43,12 +43,14 @@ describe("YAML form specs", () => {
     expect(diagnostics).toEqual([]);
 
     const normalized = normalizeFormSpec(parsed.value!);
-    expect(normalized.layout[0]?.children[0]?.span).toEqual({
+    const firstRow = normalized.layout[0];
+    if (firstRow?.type !== "row") throw new Error("expected a row");
+    expect(firstRow.children[0]?.span).toEqual({
       mobile: 12,
       tablet: 6,
       desktop: 6,
     });
-    expect(normalized.layout[0]?.children[0]?.children[0]?.id).toBe("row-1.column-1.field-1");
+    expect(firstRow.children[0]?.children[0]?.id).toBe("row-1.column-1.field-1");
   });
 
   it("reports invalid field paths and spans", () => {
@@ -62,6 +64,64 @@ describe("YAML form specs", () => {
     expect(parsed.value).toBeUndefined();
     expect(parsed.diagnostics[0]?.code).toBe("YF_PARSE_YAML");
     expect(parsed.diagnostics[0]?.range?.start.line).toBe(1);
+  });
+
+  it("validates and normalizes panels, recursing into their nested rows", () => {
+    const panelSource = validSource.replace(
+      /layout:\n[\s\S]*?(?=validations:)/,
+      `layout:
+  - type: panel
+    title: Contact
+    children:
+      - type: row
+        children:
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: person.name
+          - type: column
+            span: { mobile: 12, tablet: 6 }
+            children:
+              - type: field
+                path: person.email
+`,
+    );
+
+    const parsed = parseYamlSpec(panelSource);
+    expect(parsed.diagnostics).toEqual([]);
+    expect(validateFormSpec(parsed.value!)).toEqual([]);
+
+    const normalized = normalizeFormSpec(parsed.value!);
+    const panel = normalized.layout[0];
+    if (panel?.type !== "panel") throw new Error("expected a panel");
+    expect(panel.title).toBe("Contact");
+    expect(panel.children[0]?.children[0]?.children[0]?.id).toBe("panel-1.row-1.column-1.field-1");
+  });
+
+  it("detects duplicate field paths nested inside a panel", () => {
+    const panelSource = validSource.replace(
+      /layout:\n[\s\S]*?(?=validations:)/,
+      `layout:
+  - type: panel
+    children:
+      - type: row
+        children:
+          - type: column
+            children:
+              - type: field
+                path: person.email
+  - type: row
+    children:
+      - type: column
+        children:
+          - type: field
+            path: person.email
+`,
+    );
+
+    const diagnostics = validateFormSpec(parseYamlSpec(panelSource).value!);
+    expect(diagnostics.map(({ code }) => code)).toContain("YF_FIELD_DUPLICATE");
   });
 });
 

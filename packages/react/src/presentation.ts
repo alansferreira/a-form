@@ -4,10 +4,18 @@ import type {
   RegistryWidgetsType,
   TemplatesType,
 } from "@rjsf/utils";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
+
+export interface PanelTemplateProps {
+  readonly id: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly children?: ReactNode;
+}
 
 export type PresentationTemplates = Partial<Omit<TemplatesType, "FieldTemplate" | "ObjectFieldTemplate" | "ButtonTemplates">> & {
   readonly FieldTemplate?: ComponentType<FieldTemplateProps>;
+  readonly PanelTemplate?: ComponentType<PanelTemplateProps>;
   readonly ButtonTemplates?: Partial<TemplatesType["ButtonTemplates"]>;
 };
 

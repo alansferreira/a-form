@@ -9,11 +9,15 @@ import { TailwindAdapter } from 'a-form-presentation-tailwind'
 import {
   AlignLeft,
   Braces,
+  Calendar,
+  CalendarClock,
   Check,
   CheckSquare,
   ChevronRight,
   CircleDot,
   Clipboard,
+  Clock,
+  Cloud,
   Code2,
   Database,
   Download,
@@ -29,7 +33,9 @@ import {
   Palette,
   Plus,
   Rows3,
+  Search,
   Settings2,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Tablet,
@@ -47,12 +53,13 @@ import {
   fieldGridColumns,
   formSpecToBuilderRows,
   formSpecToYaml,
+  groupRowsByPanel,
   inferFieldKind,
   internalPath,
   listDataPaths,
   parseExampleData,
 } from './model'
-import type { BuilderField, BuilderRow, FieldKind, PalettePayload } from './model'
+import type { BuilderField, BuilderPanel, BuilderRow, FieldKind, PalettePayload } from './model'
 import { TouchDragOverlay } from './TouchDragOverlay'
 import { useTouchDrag } from './useTouchDrag'
 import './BuilderApp.css'
@@ -101,6 +108,12 @@ const kindIcons: Record<FieldKind, LucideIcon> = {
   checkbox: CheckSquare,
   radio: CircleDot,
   select: List,
+  date: Calendar,
+  time: Clock,
+  datetime: CalendarClock,
+  range: SlidersHorizontal,
+  autocomplete: Search,
+  asyncOptions: Cloud,
 }
 
 const viewports: readonly { id: Viewport; label: string; icon: LucideIcon }[] = [
@@ -154,6 +167,7 @@ function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport
 export function BuilderApp() {
   const [dataDocument, setDataDocument] = useState<StructuredDocument>({ source: exampleData, format: 'yaml' })
   const [rows, setRows] = useState<readonly BuilderRow[]>(initialRows)
+  const [panels, setPanels] = useState<readonly BuilderPanel[]>([])
   const [baseSpec, setBaseSpec] = useState<FormSpec>()
   const [selectedFieldId, setSelectedFieldId] = useState<string>('field-1')
   const [pathDraft, setPathDraft] = useState('')
@@ -170,12 +184,13 @@ export function BuilderApp() {
   const [specFormat, setSpecFormat] = useState<StructuredDocument['format']>('yaml')
   const fieldSequence = useRef(4)
   const rowSequence = useRef(3)
+  const panelSequence = useRef(1)
   const deferredDataSource = useDeferredValue(dataDocument.source)
   const parsedData = parseExampleData(deferredDataSource)
   const dataPaths = parsedData.value ? listDataPaths(parsedData.value) : []
-  const spec = buildFormSpec(rows, baseSpec)
+  const spec = buildFormSpec(rows, panels, baseSpec)
   const normalized = normalizeFormSpec(spec)
-  const specYaml = formSpecToYaml(rows, baseSpec)
+  const specYaml = formSpecToYaml(rows, panels, baseSpec)
   const specDocument: StructuredDocument = {
     source: specFormat === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
     format: specFormat,
@@ -280,10 +295,36 @@ export function BuilderApp() {
     setNotice(`${id} added. Select a source, then click a slot.`)
   }
 
+  const addPanel = () => {
+    const panelId = `panel-${panelSequence.current++}`
+    const rowId = `row-${rowSequence.current++}`
+    setPanels((current) => [...current, { id: panelId, title: 'New panel' }])
+    setRows((current) => [...current, { id: rowId, panelId, fields: [] }])
+    setNotice(`${panelId} added. Rows added below will keep joining the last panel.`)
+  }
+
+  const addRowToPanel = (panelId: string) => {
+    const id = `row-${rowSequence.current++}`
+    setRows((current) => {
+      const lastIndexInPanel = current.reduce((found, row, index) => row.panelId === panelId ? index : found, -1)
+      const next = [...current]
+      next.splice(lastIndexInPanel + 1, 0, { id, panelId, fields: [] })
+      return next
+    })
+  }
+
+  const renamePanel = (panelId: string, title: string) => {
+    setPanels((current) => current.map((panel) => panel.id === panelId ? { ...panel, title } : panel))
+  }
+
   const removeRow = (rowId: string) => {
     const row = rows.find((item) => item.id === rowId)
     if (row?.fields.some((field) => field.id === selectedFieldId)) setSelectedFieldId('')
+    const panelId = row?.panelId
     setRows((current) => current.filter((item) => item.id !== rowId))
+    if (panelId && !rows.some((item) => item.id !== rowId && item.panelId === panelId)) {
+      setPanels((current) => current.filter((panel) => panel.id !== panelId))
+    }
   }
 
   const updateSelected = (changes: Partial<BuilderField>) => {
@@ -341,12 +382,14 @@ export function BuilderApp() {
     }
 
     try {
-      const importedRows = formSpecToBuilderRows(parsed.value)
+      const { rows: importedRows, panels: importedPanels } = formSpecToBuilderRows(parsed.value)
       const firstField = importedRows.flatMap((row) => row.fields)[0]
       setRows(importedRows)
+      setPanels(importedPanels)
       setBaseSpec(parsed.value)
       fieldSequence.current = importedRows.reduce((total, row) => total + row.fields.length, 0) + 1
       rowSequence.current = importedRows.length + 1
+      panelSequence.current = importedPanels.length + 1
       setSelectedFieldId(firstField?.id ?? '')
       setPendingPayload(undefined)
       setView('design')
@@ -516,53 +559,76 @@ export function BuilderApp() {
           {view === 'design' ? (
             <div className="builder-grid-canvas">
               <div className="builder-grid-ruler">{Array.from({ length: 12 }, (_, index) => <span key={index}>{index + 1}</span>)}</div>
-              {rows.map((row, rowIndex) => {
-                const used = row.fields.reduce((total, field) => total + field.span, 0)
-                const gridColumns = fieldGridColumns(row.fields)
-                return (
-                  <div className="builder-row-wrap" key={row.id}>
-                    <div className="builder-row-meta"><span>ROW {String(rowIndex + 1).padStart(2, '0')}</span><small>{used}/12</small><button type="button" title="Remove row" aria-label={`Remove row ${rowIndex + 1}`} onClick={() => removeRow(row.id)}><Trash2 size={13} /></button></div>
-                    <div
-                      className={`builder-grid-row ${touchDrag?.target?.rowId === row.id ? 'touch-target' : ''}`}
-                      data-builder-row-id={row.id}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => dropOnRow(event, row.id)}
-                    >
-                      <div className="builder-slot-layer" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
-                      <div className="builder-drop-layer">
-                        {Array.from({ length: 12 }, (_, slot) => (
-                          <button key={slot} type="button" aria-label={`Place in row ${rowIndex + 1}, column ${slot + 1}`} onClick={() => pendingPayload && placeField(pendingPayload, row.id, slot)} />
-                        ))}
-                      </div>
-                      {touchDrag?.target?.rowId === row.id && <div className="builder-touch-slot" style={{ left: `${touchDrag.target.slot * (100 / 12)}%`, width: `${100 / 12}%` }} />}
-                      <div className="builder-fields-layer">
-                        {row.fields.map((field) => {
-                          const Icon = kindIcons[field.kind]
-                          const payload: PalettePayload = { source: 'canvas', fieldId: field.id, label: field.label, kind: field.kind }
-                          return (
-                            <button
-                              className={`builder-field-block ${selectedFieldId === field.id ? 'selected' : ''}`}
-                              draggable
-                              key={field.id}
-                              style={{ gridColumn: gridColumns[field.id] }}
-                              type="button"
-                              onClick={() => { setSelectedFieldId(field.id); setInspectorView('properties') }}
-                              onDragStart={(event) => beginDrag(event, payload)}
-                            >
-                              <span className="builder-touch-handle builder-field-grip" {...bindTouchHandle(payload)}><GripVertical size={14} /></span>
-                              <Icon size={17} />
-                              <span><strong>{field.label}</strong><small>{field.jsonPath}</small></span>
-                              <em>{field.span}</em>
-                            </button>
-                          )
-                        })}
-                        {row.fields.length === 0 && <div className="builder-empty-row"><Plus size={16} /> Drop a data path or field type</div>}
+              {groupRowsByPanel(rows).map((group) => {
+                const rowElements = group.rows.map((row) => {
+                  const rowIndex = rows.indexOf(row)
+                  const used = row.fields.reduce((total, field) => total + field.span, 0)
+                  const gridColumns = fieldGridColumns(row.fields)
+                  return (
+                    <div className="builder-row-wrap" key={row.id}>
+                      <div className="builder-row-meta"><span>ROW {String(rowIndex + 1).padStart(2, '0')}</span><small>{used}/12</small><button type="button" title="Remove row" aria-label={`Remove row ${rowIndex + 1}`} onClick={() => removeRow(row.id)}><Trash2 size={13} /></button></div>
+                      <div
+                        className={`builder-grid-row ${touchDrag?.target?.rowId === row.id ? 'touch-target' : ''}`}
+                        data-builder-row-id={row.id}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => dropOnRow(event, row.id)}
+                      >
+                        <div className="builder-slot-layer" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <span key={index} />)}</div>
+                        <div className="builder-drop-layer">
+                          {Array.from({ length: 12 }, (_, slot) => (
+                            <button key={slot} type="button" aria-label={`Place in row ${rowIndex + 1}, column ${slot + 1}`} onClick={() => pendingPayload && placeField(pendingPayload, row.id, slot)} />
+                          ))}
+                        </div>
+                        {touchDrag?.target?.rowId === row.id && <div className="builder-touch-slot" style={{ left: `${touchDrag.target.slot * (100 / 12)}%`, width: `${100 / 12}%` }} />}
+                        <div className="builder-fields-layer">
+                          {row.fields.map((field) => {
+                            const Icon = kindIcons[field.kind]
+                            const payload: PalettePayload = { source: 'canvas', fieldId: field.id, label: field.label, kind: field.kind }
+                            return (
+                              <button
+                                className={`builder-field-block ${selectedFieldId === field.id ? 'selected' : ''}`}
+                                draggable
+                                key={field.id}
+                                style={{ gridColumn: gridColumns[field.id] }}
+                                type="button"
+                                onClick={() => { setSelectedFieldId(field.id); setInspectorView('properties') }}
+                                onDragStart={(event) => beginDrag(event, payload)}
+                              >
+                                <span className="builder-touch-handle builder-field-grip" {...bindTouchHandle(payload)}><GripVertical size={14} /></span>
+                                <Icon size={17} />
+                                <span><strong>{field.label}</strong><small>{field.jsonPath}</small></span>
+                                <em>{field.span}</em>
+                              </button>
+                            )
+                          })}
+                          {row.fields.length === 0 && <div className="builder-empty-row"><Plus size={16} /> Drop a data path or field type</div>}
+                        </div>
                       </div>
                     </div>
+                  )
+                })
+
+                if (!group.panelId) return rowElements
+
+                const panel = panels.find((item) => item.id === group.panelId)
+                return (
+                  <div className="builder-panel-wrap" key={group.panelId}>
+                    <div className="builder-panel-meta">
+                      <input
+                        aria-label="Panel title"
+                        value={panel?.title ?? ''}
+                        onChange={(event) => renamePanel(group.panelId!, event.target.value)}
+                      />
+                      <button type="button" title="Add row to this panel" onClick={() => addRowToPanel(group.panelId!)}><Plus size={13} /></button>
+                    </div>
+                    <div className="builder-panel-frame">{rowElements}</div>
                   </div>
                 )
               })}
-              <button className="builder-add-row" type="button" onClick={addRow}><Plus size={16} /> Add grid row</button>
+              <div className="builder-canvas-actions">
+                <button className="builder-add-row" type="button" onClick={addRow}><Plus size={16} /> Add grid row</button>
+                <button className="builder-add-row" type="button" onClick={addPanel}><Rows3 size={16} /> Add panel</button>
+              </div>
             </div>
           ) : view === 'code' ? (
             <div className="builder-code-stage">
@@ -610,6 +676,29 @@ export function BuilderApp() {
                 onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitFieldPath(pathDraft) } }}
               /></label>
               <label>Field type<select value={selectedField.kind} onChange={(event) => updateSelected({ kind: event.target.value as FieldKind })}>{FIELD_KINDS.map((item) => <option value={item.kind} key={item.kind}>{item.label}</option>)}</select></label>
+              {selectedField.kind === 'range' && (
+                <fieldset>
+                  <legend>Range</legend>
+                  <div className="builder-range-control">
+                    <label>Min<input type="number" value={selectedField.rangeMin ?? 0} onChange={(event) => updateSelected({ rangeMin: Number(event.target.value) })} /></label>
+                    <label>Max<input type="number" value={selectedField.rangeMax ?? 100} onChange={(event) => updateSelected({ rangeMax: Number(event.target.value) })} /></label>
+                    <label>Step<input type="number" value={selectedField.rangeStep ?? 1} onChange={(event) => updateSelected({ rangeStep: Number(event.target.value) })} /></label>
+                  </div>
+                </fieldset>
+              )}
+              {(selectedField.kind === 'autocomplete' || selectedField.kind === 'asyncOptions') && (
+                <fieldset>
+                  <legend>{selectedField.kind === 'asyncOptions' ? 'Async source' : 'Autocomplete source'}</legend>
+                  <label>Source URL (Mustache template)<input
+                    placeholder="/api/cities?country={{customer.country}}"
+                    value={selectedField.optionsSource ?? ''}
+                    onChange={(event) => updateSelected({ optionsSource: event.target.value })}
+                  /></label>
+                  <label>Value key<input placeholder="id" value={selectedField.optionsValueKey ?? ''} onChange={(event) => updateSelected({ optionsValueKey: event.target.value })} /></label>
+                  <label>Label key<input placeholder="name" value={selectedField.optionsLabelKey ?? ''} onChange={(event) => updateSelected({ optionsLabelKey: event.target.value })} /></label>
+                  <label>Item label template<input placeholder="{{item.name}} ({{item.code}})" value={selectedField.optionsItemTemplate ?? ''} onChange={(event) => updateSelected({ optionsItemTemplate: event.target.value })} /></label>
+                </fieldset>
+              )}
               <fieldset>
                 <legend>Column span</legend>
                 <div className="builder-span-control">{[3, 4, 6, 8, 12].map((span) => <button className={selectedField.span === span ? 'active' : ''} type="button" key={span} onClick={() => updateSpan(span)}>{span}</button>)}</div>
