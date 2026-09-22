@@ -1,6 +1,6 @@
 {
   "name": "a-form-presentation-tailwind",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "exports": {
     ".": {
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@rjsf/utils": "^6.10.0",
-    "a-form-react": "^0.2.0"
+    "a-form-react": "^0.2.1"
   },
   "peerDependencies": {
     "react": ">=18.0.0",
