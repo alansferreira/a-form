@@ -20,11 +20,11 @@
       "$ref": "#/$defs/uiSchemaNode"
     },
     "layout": {
-      "description": "Responsive form layout, organized as rows containing columns, optionally grouped into visual panels.",
+      "description": "Responsive form layout: a flat list of 12-column fields, optionally grouped into visual panels. Fields pack left-to-right and wrap automatically.",
       "type": "array",
       "items": {
         "oneOf": [
-          { "$ref": "#/$defs/row" },
+          { "$ref": "#/$defs/field" },
           { "$ref": "#/$defs/panel" }
         ]
       }
@@ -511,7 +511,7 @@
       }
     },
     "field": {
-      "description": "A field referencing a property in the form JSON Schema.",
+      "description": "A field referencing a property in the form JSON Schema. Fields pack left-to-right into a 12-column grid and wrap automatically once a row runs out of space.",
       "type": "object",
       "additionalProperties": false,
       "required": ["type", "path"],
@@ -524,20 +524,6 @@
         },
         "path": {
           "$ref": "#/$defs/fieldPath"
-        }
-      }
-    },
-    "column": {
-      "description": "A responsive grid column containing fields or nested rows.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "children"],
-      "properties": {
-        "type": {
-          "const": "column"
-        },
-        "id": {
-          "$ref": "#/$defs/nodeId"
         },
         "span": {
           "oneOf": [
@@ -550,46 +536,13 @@
           ]
         },
         "align": {
-          "description": "Which edge of the row this column's slots are consumed from; \"end\" hugs the right edge. Defaults to \"start\".",
+          "description": "Which edge of the flow this field's slot is consumed from; \"end\" hugs the right edge. Defaults to \"start\".",
           "enum": ["start", "end"]
-        },
-        "children": {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "$ref": "#/$defs/field"
-              },
-              {
-                "$ref": "#/$defs/row"
-              }
-            ]
-          }
-        }
-      }
-    },
-    "row": {
-      "description": "A layout row containing responsive columns.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "children"],
-      "properties": {
-        "type": {
-          "const": "row"
-        },
-        "id": {
-          "$ref": "#/$defs/nodeId"
-        },
-        "children": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/column"
-          }
         }
       }
     },
     "panel": {
-      "description": "A visual grouping container wrapping one or more rows, rendered with a border and optional title.",
+      "description": "A visual grouping container wrapping one or more fields, rendered with a border and optional title.",
       "type": "object",
       "additionalProperties": false,
       "required": ["type", "children"],
@@ -615,7 +568,7 @@
         "children": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/row"
+            "$ref": "#/$defs/field"
           }
         }
       }

@@ -138,16 +138,10 @@ const spec: NormalizedFormSpec = {
   },
   layout: [
     {
-      type: "row",
-      id: "contact-row",
-      children: [
-        {
-          type: "column",
-          id: "contact-column",
-          span: { mobile: 12, tablet: 8, desktop: 6 },
-          children: [{ type: "field", id: "email-field", path: "email" }],
-        },
-      ],
+      type: "field",
+      id: "email-field",
+      path: "email",
+      span: { mobile: 12, tablet: 8, desktop: 6 },
     },
   ],
 };
@@ -231,7 +225,7 @@ The editor schema validates the AForm document structure. Cross-references such 
 
 ## Responsive by Specification
 
-The layout uses a 12-column grid. Choose which normalized span should be rendered through the `viewport` prop:
+The layout is a flat list of 12-column fields that pack left-to-right and wrap automatically. Choose which normalized span should be rendered through the `viewport` prop:
 
 ```tsx
 import type { NormalizedFormSpec } from "a-form-core";
@@ -261,12 +255,9 @@ export function ResponsivePreview({ spec }: { spec: NormalizedFormSpec }) {
 
 ```yaml
 layout:
-  - type: row
-    children:
-      - type: column
-        span: { mobile: 12, tablet: 6, desktop: 4 }
-        children:
-          - { type: field, path: person.name }
+  - type: field
+    path: person.name
+    span: { mobile: 12, tablet: 6, desktop: 4 }
 ```
 
 Only fields referenced by the AForm layout are rendered. Nested object paths such as `person.name` remain connected to their parent JSON Schema structure.

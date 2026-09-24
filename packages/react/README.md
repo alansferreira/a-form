@@ -247,7 +247,7 @@ Use `className` to scope your design and target the stable `a-form-*` hooks:
 
 Public hooks include `.a-form-object-root`, `.a-form-object-bridge`, `.a-form-object-nested`, `.a-form-field`, `.a-form-layout-field`, `.a-form-nested-field`, `.a-form-label`, `.a-form-required`, `.a-form-property`, `.a-form-hidden-field`, and `.a-form-submit`.
 
-Panel hooks include `.a-form-panel` (positioned frame wrapper), `.a-form-panel-frame`, `.a-form-panel-title`, and `.a-form-panel-description`. Panels are a `layout` node type (`{ "type": "panel", "title": ..., "children": [row, ...] }`) that visually group one or more rows; each field belonging to a panel also gets a `data-a-form-panel` attribute with the panel's id. Panels render a decorative frame only (no real DOM nesting of their fields) — provide a `PanelTemplate` on a `PresentationAdapter` to fully customize the chrome.
+Panel hooks include `.a-form-panel` (positioned frame wrapper), `.a-form-panel-frame`, `.a-form-panel-title`, and `.a-form-panel-description`. Panels are a `layout` node type (`{ "type": "panel", "title": ..., "children": [field, ...] }`) that visually group one or more fields; each field belonging to a panel also gets a `data-a-form-panel` attribute with the panel's id. Panels render a decorative frame only (no real DOM nesting of their fields) — provide a `PanelTemplate` on a `PresentationAdapter` to fully customize the chrome.
 
 Use `ui:helpTemplate` instead of `ui:help` to render a Mustache template (via `a-form-template`) against the whole form's current data, e.g. `uiSchema: { phone: { "ui:helpTemplate": "Use the dialing code for {{person.country}}." } }`. The template is re-rendered on every change, so the help text can react to other fields' values.
 

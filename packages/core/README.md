@@ -40,14 +40,9 @@ const registration: FormSpec = {
   },
   layout: [
     {
-      type: "row",
-      children: [
-        {
-          type: "column",
-          span: { mobile: 12, tablet: 8, desktop: 6 },
-          children: [{ type: "field", path: "email" }],
-        },
-      ],
+      type: "field",
+      path: "email",
+      span: { mobile: 12, tablet: 8, desktop: 6 },
     },
   ],
 };
@@ -59,7 +54,7 @@ const registration: FormSpec = {
 | --- | --- |
 | `FormSpec` | Complete versioned form contract |
 | `NormalizedFormSpec` | Form contract with stable node IDs and complete responsive spans |
-| `RowNode`, `ColumnNode`, `FieldNode` | Responsive layout tree |
+| `FieldNode`, `PanelNode` | Responsive layout tree (flat fields, optionally grouped into panels) |
 | `ResponsiveSpan` | Mobile, tablet, and desktop values for the 12-column grid |
 | `JsonValue`, `JsonObject` | Framework-neutral JSON values and form state |
 | `Diagnostic`, `DiagnosticSeverity` | Structured parser and validation feedback |
@@ -68,7 +63,7 @@ const registration: FormSpec = {
 
 ## Responsive Layout
 
-Columns accept either one span or breakpoint-specific spans:
+Fields pack left-to-right into the 12-column grid and wrap automatically once a row runs out of space. Fields accept either one span or breakpoint-specific spans:
 
 ```ts
 const fullWidth = 12;

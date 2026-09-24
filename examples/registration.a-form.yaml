@@ -29,29 +29,19 @@ uiSchema:
       ui:options:
         inputType: tel
 layout:
-  - type: row
-    children:
-      - type: column
-        span:
-          mobile: 12
-          tablet: 6
-        children:
-          - type: field
-            path: person.name
-      - type: column
-        span:
-          mobile: 12
-          tablet: 6
-        children:
-          - type: field
-            path: person.email
-  - type: row
-    children:
-      - type: column
-        span: 12
-        children:
-          - type: field
-            path: person.phone
+  - type: field
+    path: person.name
+    span:
+      mobile: 12
+      tablet: 6
+  - type: field
+    path: person.email
+    span:
+      mobile: 12
+      tablet: 6
+  - type: field
+    path: person.phone
+    span: 12
 validations:
   async:
     - id: email-available

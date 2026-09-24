@@ -24,11 +24,11 @@ import type {
 import type {
   AsyncValidationRuleSpec,
   AsyncValidationTrigger,
+  ColumnAlign,
   JsonObject,
   JsonValue,
+  NormalizedFieldNode,
   NormalizedFormSpec,
-  NormalizedPanelNode,
-  NormalizedRowNode,
 } from "a-form-core";
 import { renderTemplate } from "a-form-template";
 import type { PanelTemplateProps, PresentationConfig } from "./presentation.js";
@@ -66,7 +66,8 @@ export interface AFormProps {
 }
 
 interface LayoutFormContext {
-  readonly placements: Readonly<Record<string, GridPlacement>>;
+  readonly fieldSpans: Readonly<Record<string, number>>;
+  readonly fieldAlign: Readonly<Record<string, ColumnAlign>>;
   readonly order: Readonly<Record<string, number>>;
   readonly layoutPaths: readonly string[];
   readonly asyncFields: Readonly<Record<string, AsyncFieldState>>;
@@ -131,89 +132,68 @@ function addError(errorSchema: ErrorSchema, path: string, message: string): void
   current.__errors = [...(current.__errors ?? []), message];
 }
 
-interface GridPlacement {
-  readonly start: number;
-  readonly end: number;
-  readonly row: number;
-}
-
-function collectLayout(
-  rows: readonly NormalizedRowNode[],
-  viewport: AFormViewport,
-  placements: Record<string, GridPlacement>,
-  order: Record<string, number>,
-  rowCursor: { current: number } = { current: 1 },
-): void {
-  for (const row of rows) {
-    // Pin every field in this row to the same explicit grid line so a right-aligned
-    // column's leftover gap can't be filled by the next row's fields (auto-placement bleed).
-    const gridRow = rowCursor.current++;
-    // "start"-aligned columns pack from grid line 1 rightward; "end"-aligned columns pack from line 13 leftward.
-    let startCursor = 1;
-    let endCursor = 13;
-    for (const column of row.children) {
-      const span = column.span[viewport];
-      const placement: GridPlacement = column.align === "end"
-        ? { start: endCursor - span, end: endCursor, row: gridRow }
-        : { start: startCursor, end: startCursor + span, row: gridRow };
-      if (column.align === "end") endCursor -= span;
-      else startCursor += span;
-
-      for (const child of column.children) {
-        if (child.type === "field") {
-          placements[child.path] = placement;
-          order[child.path] = Object.keys(order).length;
-        } else {
-          collectLayout([child], viewport, placements, order, rowCursor);
-        }
-      }
-    }
-  }
-}
-
-function collectFieldPaths(rows: readonly NormalizedRowNode[]): string[] {
-  const paths: string[] = [];
-  for (const row of rows) {
-    for (const column of row.children) {
-      for (const child of column.children) {
-        if (child.type === "field") paths.push(child.path);
-        else paths.push(...collectFieldPaths([child]));
-      }
-    }
-  }
-  return paths;
-}
-
 interface CollectedLayout {
-  readonly placements: Record<string, GridPlacement>;
+  readonly fieldSpans: Record<string, number>;
+  readonly fieldAlign: Record<string, ColumnAlign>;
   readonly order: Record<string, number>;
   readonly panels: PanelGroup[];
   readonly pathToPanel: Record<string, string>;
   readonly panelFrames: Record<string, PanelFramePlacement>;
 }
 
-function collectFormLayout(layout: readonly (NormalizedRowNode | NormalizedPanelNode)[], viewport: AFormViewport): CollectedLayout {
-  const placements: Record<string, GridPlacement> = {};
+function spanForViewport(field: NormalizedFieldNode, viewport: AFormViewport): number {
+  return field.span[viewport];
+}
+
+/**
+ * Packs fields into 12-column rows exactly like the CSS grid engine will (greedy left-to-right,
+ * wrapping once a row runs out of space), so the browser—not the spec author—decides line breaks.
+ * The simulation only drives the decorative panel frame; actual fields rely on native grid auto-flow.
+ */
+function collectFormLayout(layout: NormalizedFormSpec["layout"], viewport: AFormViewport): CollectedLayout {
+  const fieldSpans: Record<string, number> = {};
+  const fieldAlign: Record<string, ColumnAlign> = {};
   const order: Record<string, number> = {};
   const panels: PanelGroup[] = [];
   const pathToPanel: Record<string, string> = {};
   const panelFrames: Record<string, PanelFramePlacement> = {};
-  const rowCursor = { current: 1 };
+  let cursor = 0;
+  let row = 1;
+
+  const placeField = (field: NormalizedFieldNode, panelId?: string): void => {
+    const span = spanForViewport(field, viewport);
+    if (cursor > 0 && cursor + span > 12) {
+      row += 1;
+      cursor = 0;
+    }
+    fieldSpans[field.path] = span;
+    fieldAlign[field.path] = field.align;
+    order[field.path] = Object.keys(order).length;
+    if (panelId) pathToPanel[field.path] = panelId;
+    cursor += span;
+  };
 
   for (const node of layout) {
     if (node.type === "panel") {
-      const rowStart = rowCursor.current;
+      if (cursor > 0) {
+        row += 1;
+        cursor = 0;
+      }
+      const rowStart = row;
       const panelOrder = Object.keys(order).length;
-      collectLayout(node.children, viewport, placements, order, rowCursor);
+      node.children.forEach((field) => placeField(field, node.id));
       panels.push({ id: node.id, ...(node.title !== undefined ? { title: node.title } : {}), ...(node.description !== undefined ? { description: node.description } : {}) });
-      panelFrames[node.id] = { rowStart, rowEnd: rowCursor.current, order: panelOrder };
-      collectFieldPaths(node.children).forEach((path) => { pathToPanel[path] = node.id; });
+      panelFrames[node.id] = { rowStart, rowEnd: row + 1, order: panelOrder };
+      if (cursor > 0) {
+        row += 1;
+        cursor = 0;
+      }
     } else {
-      collectLayout([node], viewport, placements, order, rowCursor);
+      placeField(node);
     }
   }
 
-  return { placements, order, panels, pathToPanel, panelFrames };
+  return { fieldSpans, fieldAlign, order, panels, pathToPanel, panelFrames };
 }
 
 function relationToLayout(path: string, context: LayoutFormContext) {
@@ -243,8 +223,11 @@ function createFieldTemplate() {
     const style = relation.exact
       ? {
           ...props.style,
-          gridColumn: `${context.placements[path]?.start} / ${context.placements[path]?.end}`,
-          gridRow: context.placements[path]?.row,
+          // "start" fields pack left-to-right; "end" fields hug the grid's right edge (line -1) so the browser's
+          // native auto-placement decides on its own when a field fits the current row or must wrap to the next one.
+          gridColumn: context.fieldAlign[path] === "end"
+            ? `span ${context.fieldSpans[path]} / -1`
+            : `span ${context.fieldSpans[path]}`,
           order: context.order[path],
         } as CSSProperties
       : props.style;
@@ -471,7 +454,7 @@ export function AForm({
     }, debounceMs));
   };
 
-  const { placements, order, panels, pathToPanel, panelFrames } = collectFormLayout(spec.layout, viewport);
+  const { fieldSpans, fieldAlign, order, panels, pathToPanel, panelFrames } = collectFormLayout(spec.layout, viewport);
   const asyncFields: Record<string, AsyncFieldState> = {};
   Object.values(records).forEach(({ fieldPath, result }) => {
     const previous = asyncFields[fieldPath];
@@ -489,9 +472,10 @@ export function AForm({
     };
   });
   const formContext: LayoutFormContext = {
-    placements,
+    fieldSpans,
+    fieldAlign,
     order,
-    layoutPaths: Object.keys(placements),
+    layoutPaths: Object.keys(fieldSpans),
     asyncFields,
     panels,
     pathToPanel,

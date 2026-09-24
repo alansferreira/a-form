@@ -2,7 +2,7 @@
 
 Copy-paste recipes for the layout and field features added on top of the base
 [presentation adapters quick start](./presentation-adapters-quick-start.md):
-right-aligned columns, visual panels, the `a-form-template` engine, templated
+right-aligned fields, visual panels, the `a-form-template` engine, templated
 help text, and the new field kinds (date/time/datetime/range/autocomplete/async
 options). A full combined example lives at
 [examples/feature-showcase.a-form.yaml](../examples/feature-showcase.a-form.yaml).
@@ -44,33 +44,26 @@ export function Recipe({ yamlSource }: { yamlSource: string }) {
 
 ---
 
-## Right-aligned columns
+## Right-aligned fields
 
-A column's `align: end` makes it consume the row's last N slots instead of the
-next N from the left — a span-4 `end` column always hugs the right edge.
+A field's `align: end` makes it hug the grid's right edge instead of packing
+from the left — a span-4 `end` field always ends flush against column 12.
 
 ```yaml
 layout:
-  - type: row
-    children:
-      - type: column
-        span: { mobile: 12, tablet: 8 }
-        children:
-          - type: field
-            path: trip.budget
-      - type: column
-        span: { mobile: 12, tablet: 4 }
-        align: end
-        children:
-          - type: field
-            path: trip.priority
+  - type: field
+    path: trip.budget
+    span: { mobile: 12, tablet: 8 }
+  - type: field
+    path: trip.priority
+    span: { mobile: 12, tablet: 4 }
+    align: end
 ```
 
 ## Visual panels
 
-A `panel` layout node groups one or more rows behind a titled, bordered frame.
-Panels sit as siblings of `row` at the top of `layout` (not nested inside a
-column).
+A `panel` layout node groups one or more fields behind a titled, bordered frame.
+Panels sit as siblings of plain fields at the top of `layout`.
 
 ```yaml
 layout:
@@ -79,18 +72,12 @@ layout:
     title: Traveler
     description: Who is this trip for?
     children:
-      - type: row
-        children:
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.travelerName
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.travelerEmail
+      - type: field
+        path: trip.travelerName
+        span: { mobile: 12, tablet: 6 }
+      - type: field
+        path: trip.travelerEmail
+        span: { mobile: 12, tablet: 6 }
 ```
 
 The frame is decorative only (no real DOM nesting of the fields inside it).
@@ -230,7 +217,7 @@ instead of silently creating a duplicate.
 
 [examples/feature-showcase.a-form.yaml](../examples/feature-showcase.a-form.yaml)
 combines all of the above in one runnable spec: two panels ("Traveler" and
-"Trip details"), a right-aligned `priority` column, `date` widgets, a `range`
+"Trip details"), a right-aligned `priority` field, `date` widgets, a `range`
 budget slider, an `asyncOptions` city field with a templated `source` and
 `ui:helpTemplate`. Load it as `yamlSource` in the snippet at the top of this
 page to see everything together.

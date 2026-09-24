@@ -69,57 +69,33 @@ layout:
     id: traveler-panel
     title: Traveler
     children:
-      - type: row
-        children:
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.travelerName
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.travelerEmail
+      - type: field
+        path: trip.travelerName
+        span: { mobile: 12, tablet: 6 }
+      - type: field
+        path: trip.travelerEmail
+        span: { mobile: 12, tablet: 6 }
   - type: panel
     id: trip-panel
     title: Trip details
     description: Dates, destination and budget for this trip.
     children:
-      - type: row
-        children:
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.departureDate
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.returnDate
-      - type: row
-        children:
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.country
-          - type: column
-            span: { mobile: 12, tablet: 6 }
-            children:
-              - type: field
-                path: trip.city
-      - type: row
-        children:
-          - type: column
-            span: { mobile: 12, tablet: 8 }
-            children:
-              - type: field
-                path: trip.budget
-          - type: column
-            span: { mobile: 12, tablet: 4 }
-            align: end
-            children:
-              - type: field
-                path: trip.priority
+      - type: field
+        path: trip.departureDate
+        span: { mobile: 12, tablet: 6 }
+      - type: field
+        path: trip.returnDate
+        span: { mobile: 12, tablet: 6 }
+      - type: field
+        path: trip.country
+        span: { mobile: 12, tablet: 6 }
+      - type: field
+        path: trip.city
+        span: { mobile: 12, tablet: 6 }
+      - type: field
+        path: trip.budget
+        span: { mobile: 12, tablet: 8 }
+      - type: field
+        path: trip.priority
+        span: { mobile: 12, tablet: 4 }
+        align: end

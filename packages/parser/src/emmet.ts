@@ -1,9 +1,9 @@
 import type {
-  ColumnNode,
+  ColumnAlign,
   Diagnostic,
   FieldNode,
+  PanelNode,
   ResponsiveSpan,
-  RowNode,
   SourceRange,
 } from "a-form-core";
 
@@ -25,9 +25,10 @@ interface RawNode {
 }
 
 export interface ParseEmmetResult {
-  readonly value?: readonly RowNode[];
+  readonly value?: readonly (FieldNode | PanelNode)[];
   readonly diagnostics: readonly Diagnostic[];
 }
+
 
 function positionAt(source: string, offset: number) {
   const before = source.slice(0, offset);
@@ -243,14 +244,38 @@ function convertField(node: RawNode, diagnostics: Diagnostic[], source: string):
       range: rangeAt(source, node.start, node.end),
     });
   }
-  return { type: "field", path, ...(node.attributes.id ? { id: node.attributes.id } : {}) };
+  const mobile = numericAttribute(node, "mobile", diagnostics, source);
+  const tablet = numericAttribute(node, "tablet", diagnostics, source);
+  const desktop = numericAttribute(node, "desktop", diagnostics, source);
+  const span: ResponsiveSpan = {
+    ...(mobile !== undefined ? { mobile } : {}),
+    ...(tablet !== undefined ? { tablet } : {}),
+    ...(desktop !== undefined ? { desktop } : {}),
+  };
+  const align = node.attributes.align;
+  if (align !== undefined && align !== "start" && align !== "end") {
+    diagnostics.push({
+      code: "YF_EMMET_ALIGN",
+      message: "align must be 'start' or 'end'.",
+      severity: "error",
+      path: [],
+      range: rangeAt(source, node.start, node.end),
+    });
+  }
+  return {
+    type: "field",
+    path,
+    ...(node.attributes.id ? { id: node.attributes.id } : {}),
+    ...(Object.keys(span).length > 0 ? { span } : {}),
+    ...(align === "start" || align === "end" ? { align: align as ColumnAlign } : {}),
+  };
 }
 
-function convertRow(node: RawNode, diagnostics: Diagnostic[], source: string): RowNode | undefined {
-  if (node.name !== "row") {
+function convertPanel(node: RawNode, diagnostics: Diagnostic[], source: string): PanelNode | undefined {
+  if (node.name !== "panel") {
     diagnostics.push({
       code: "YF_EMMET_ROOT",
-      message: "The Emmet layout root may only contain row nodes.",
+      message: "The Emmet layout root may only contain field or panel nodes.",
       severity: "error",
       path: [],
       range: rangeAt(source, node.start, node.end),
@@ -258,45 +283,35 @@ function convertRow(node: RawNode, diagnostics: Diagnostic[], source: string): R
     return undefined;
   }
   const children = node.children
-    .map((child): ColumnNode | undefined => {
-      if (child.name !== "col") {
-        diagnostics.push({
-          code: "YF_EMMET_ROW_CHILD",
-          message: "row may only contain col nodes.",
+    .map((child): FieldNode | undefined => child.name === "field"
+      ? convertField(child, diagnostics, source)
+      : (diagnostics.push({
+          code: "YF_EMMET_PANEL_CHILD",
+          message: "panel may only contain field nodes.",
           severity: "error",
           path: [],
           range: rangeAt(source, child.start, child.end),
-        });
-        return undefined;
-      }
-      const columnChildren = child.children
-        .map((columnChild): FieldNode | RowNode | undefined => columnChild.name === "row"
-          ? convertRow(columnChild, diagnostics, source)
-          : columnChild.name === "field"
-            ? convertField(columnChild, diagnostics, source)
-            : undefined)
-        .filter((value): value is FieldNode | RowNode => value !== undefined);
-      const mobile = numericAttribute(child, "mobile", diagnostics, source);
-      const tablet = numericAttribute(child, "tablet", diagnostics, source);
-      const desktop = numericAttribute(child, "desktop", diagnostics, source);
-      const span: ResponsiveSpan = {
-        ...(mobile !== undefined ? { mobile } : {}),
-        ...(tablet !== undefined ? { tablet } : {}),
-        ...(desktop !== undefined ? { desktop } : {}),
-      };
-      return {
-        type: "column",
-        ...(child.attributes.id ? { id: child.attributes.id } : {}),
-        ...(Object.keys(span).length > 0 ? { span } : {}),
-        children: columnChildren,
-      };
-    })
-    .filter((value): value is ColumnNode => value !== undefined);
+        }), undefined))
+    .filter((value): value is FieldNode => value !== undefined);
   return {
-    type: "row",
+    type: "panel",
     ...(node.attributes.id ? { id: node.attributes.id } : {}),
+    ...(node.attributes.title ? { title: node.attributes.title } : {}),
     children,
   };
+}
+
+function convertTopLevel(node: RawNode, diagnostics: Diagnostic[], source: string): FieldNode | PanelNode | undefined {
+  if (node.name === "field") return convertField(node, diagnostics, source);
+  if (node.name === "panel") return convertPanel(node, diagnostics, source);
+  diagnostics.push({
+    code: "YF_EMMET_ROOT",
+    message: "The Emmet layout root may only contain field or panel nodes.",
+    severity: "error",
+    path: [],
+    range: rangeAt(source, node.start, node.end),
+  });
+  return undefined;
 }
 
 export function parseEmmetLayout(source: string): ParseEmmetResult {
@@ -304,8 +319,8 @@ export function parseEmmetLayout(source: string): ParseEmmetResult {
   const rawNodes = parser.parse();
   const diagnostics = [...parser.diagnostics];
   const value = rawNodes
-    .map((node) => convertRow(node, diagnostics, source))
-    .filter((node): node is RowNode => node !== undefined);
+    .map((node) => convertTopLevel(node, diagnostics, source))
+    .filter((node): node is FieldNode | PanelNode => node !== undefined);
   return diagnostics.some(({ severity }) => severity === "error")
     ? { diagnostics }
     : { value, diagnostics };

@@ -1,10 +1,9 @@
 import type {
   AsyncValidationRuleSpec,
-  ColumnNode,
   Diagnostic,
+  FieldNode,
   FormSpec,
   JsonObject,
-  RowNode,
 } from "a-form-core";
 
 const VALID_TRIGGERS = new Set(["change", "blur", "submit", "manual"]);
@@ -31,66 +30,38 @@ function schemaHasPath(schema: JsonObject, fieldPath: string): boolean {
   return true;
 }
 
-function validateRows(spec: FormSpec, diagnostics: Diagnostic[]): void {
+function validateLayout(spec: FormSpec, diagnostics: Diagnostic[]): void {
   const seenFields = new Set<string>();
 
-  const visitRow = (row: RowNode, path: readonly (number | string)[]): void => {
-    if (row.type !== "row" || !Array.isArray(row.children)) {
-      addError(diagnostics, "YF_LAYOUT_ROW", "A layout row must contain a children array.", path);
+  const visitField = (field: FieldNode, path: readonly (number | string)[]): void => {
+    if (field.type !== "field" || typeof field.path !== "string" || field.path.length === 0) {
+      addError(diagnostics, "YF_LAYOUT_FIELD", "A layout entry must be a field or panel.", path);
       return;
     }
-    let desktopTotal = 0;
-    row.children.forEach((column, columnIndex) => {
-      const columnPath = [...path, "children", columnIndex];
-      if (column.type !== "column" || !Array.isArray(column.children)) {
-        addError(diagnostics, "YF_LAYOUT_COLUMN", "A row may only contain columns.", columnPath);
-        return;
+    const span = typeof field.span === "number" ? { mobile: field.span } : field.span;
+    for (const breakpoint of ["mobile", "tablet", "desktop"] as const) {
+      const value = span?.[breakpoint];
+      if (value !== undefined && (!Number.isInteger(value) || value < 1 || value > 12)) {
+        addError(
+          diagnostics,
+          "YF_LAYOUT_SPAN",
+          `Field ${breakpoint} span must be an integer from 1 to 12.`,
+          [...path, "span", breakpoint],
+        );
       }
-      const span = typeof column.span === "number" ? { mobile: column.span } : column.span;
-      for (const breakpoint of ["mobile", "tablet", "desktop"] as const) {
-        const value = span?.[breakpoint];
-        if (value !== undefined && (!Number.isInteger(value) || value < 1 || value > 12)) {
-          addError(
-            diagnostics,
-            "YF_LAYOUT_SPAN",
-            `Column ${breakpoint} span must be an integer from 1 to 12.`,
-            [...columnPath, "span", breakpoint],
-          );
-        }
-      }
-      desktopTotal += span?.desktop ?? span?.tablet ?? span?.mobile ?? 12;
-      column.children.forEach((child: ColumnNode["children"][number], childIndex: number) => {
-        const childPath = [...columnPath, "children", childIndex];
-        if (child.type === "row") {
-          visitRow(child, childPath);
-          return;
-        }
-        if (child.type !== "field" || typeof child.path !== "string" || child.path.length === 0) {
-          addError(diagnostics, "YF_LAYOUT_FIELD", "A column child must be a field or nested row.", childPath);
-          return;
-        }
-        if (!schemaHasPath(spec.schema, child.path)) {
-          addError(diagnostics, "YF_FIELD_PATH", `Field path '${child.path}' does not exist in schema.`, [...childPath, "path"]);
-        }
-        if (seenFields.has(child.path)) {
-          diagnostics.push({
-            code: "YF_FIELD_DUPLICATE",
-            message: `Field path '${child.path}' appears more than once in the layout.`,
-            severity: "warning",
-            path: [...childPath, "path"],
-          });
-        }
-        seenFields.add(child.path);
-      });
-    });
-    if (desktopTotal > 12) {
+    }
+    if (!schemaHasPath(spec.schema, field.path)) {
+      addError(diagnostics, "YF_FIELD_PATH", `Field path '${field.path}' does not exist in schema.`, [...path, "path"]);
+    }
+    if (seenFields.has(field.path)) {
       diagnostics.push({
-        code: "YF_LAYOUT_WRAP",
-        message: `Desktop spans total ${desktopTotal}; columns will wrap.`,
+        code: "YF_FIELD_DUPLICATE",
+        message: `Field path '${field.path}' appears more than once in the layout.`,
         severity: "warning",
-        path,
+        path: [...path, "path"],
       });
     }
+    seenFields.add(field.path);
   };
 
   spec.layout.forEach((node, index) => {
@@ -100,10 +71,10 @@ function validateRows(spec: FormSpec, diagnostics: Diagnostic[]): void {
         addError(diagnostics, "YF_LAYOUT_PANEL", "A layout panel must contain a children array.", nodePath);
         return;
       }
-      node.children.forEach((row, rowIndex) => visitRow(row, [...nodePath, "children", rowIndex]));
+      node.children.forEach((field, fieldIndex) => visitField(field, [...nodePath, "children", fieldIndex]));
       return;
     }
-    visitRow(node, nodePath);
+    visitField(node, nodePath);
   });
 }
 
@@ -138,10 +109,10 @@ export function validateFormSpec(spec: FormSpec): readonly Diagnostic[] {
     addError(diagnostics, "YF_SPEC_SCHEMA", "schema must be a JSON object.", ["schema"]);
   }
   if (!Array.isArray(spec.layout)) {
-    addError(diagnostics, "YF_SPEC_LAYOUT", "layout must be an array of rows.", ["layout"]);
+    addError(diagnostics, "YF_SPEC_LAYOUT", "layout must be an array of fields or panels.", ["layout"]);
     return diagnostics;
   }
-  validateRows(spec, diagnostics);
+  validateLayout(spec, diagnostics);
   spec.validations?.async?.forEach((rule, index) => validateAsyncRule(spec, rule, index, diagnostics));
   return diagnostics;
 }

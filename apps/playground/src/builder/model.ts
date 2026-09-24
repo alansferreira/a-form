@@ -21,6 +21,7 @@ export interface BuilderField {
   readonly kind: FieldKind
   readonly span: number
   readonly align: 'start' | 'end'
+  readonly panelId?: string
   readonly sampleValue?: JsonValue
   readonly rangeMin?: number
   readonly rangeMax?: number
@@ -29,12 +30,6 @@ export interface BuilderField {
   readonly optionsValueKey?: string
   readonly optionsLabelKey?: string
   readonly optionsItemTemplate?: string
-}
-
-export interface BuilderRow {
-  readonly id: string
-  readonly panelId?: string
-  readonly fields: readonly BuilderField[]
 }
 
 export interface BuilderPanel {
@@ -227,61 +222,53 @@ function uiSubOptions(spec: FormSpec, path: string): Record<string, unknown> | u
   return subOptions && typeof subOptions === 'object' && !Array.isArray(subOptions) ? subOptions as Record<string, unknown> : undefined
 }
 
-export function formSpecToBuilderRows(spec: FormSpec): { rows: readonly BuilderRow[]; panels: readonly BuilderPanel[] } {
+export function formSpecToBuilderFields(spec: FormSpec): { fields: readonly BuilderField[]; panels: readonly BuilderPanel[] } {
   let fieldSequence = 1
-  let rowSequence = 1
   const panels: BuilderPanel[] = []
-  const rows: BuilderRow[] = []
+  const fields: BuilderField[] = []
 
-  const toBuilderRow = (row: Extract<FormSpec['layout'][number], { type: 'row' }>, panelId: string | undefined): BuilderRow => ({
-    id: `row-${rowSequence++}`,
-    ...(panelId ? { panelId } : {}),
-    fields: row.children.map((column) => {
-      if (column.children.length !== 1 || column.children[0]?.type !== 'field') {
-        throw new Error('The visual builder only supports columns containing exactly one field.')
-      }
+  const toBuilderField = (field: Extract<FormSpec['layout'][number], { type: 'field' }>, panelId: string | undefined): BuilderField => {
+    const path = field.path
+    const schema = schemaAtPath(spec.schema, path)
+    const span = typeof field.span === 'number'
+      ? field.span
+      : field.span?.desktop ?? field.span?.tablet ?? field.span?.mobile ?? 12
+    const kind = fieldKindFromSpec(spec, path)
+    const subOptions = uiSubOptions(spec, path)
 
-      const path = column.children[0].path
-      const schema = schemaAtPath(spec.schema, path)
-      const span = typeof column.span === 'number'
-        ? column.span
-        : column.span?.desktop ?? column.span?.tablet ?? column.span?.mobile ?? 12
-      const kind = fieldKindFromSpec(spec, path)
-      const subOptions = uiSubOptions(spec, path)
-
-      return {
-        id: `field-${fieldSequence++}`,
-        path,
-        jsonPath: `$.${path}`,
-        label: typeof schema?.title === 'string' ? schema.title : titleFromSegment(path.split('.').at(-1) ?? path),
-        kind,
-        span,
-        align: column.align === 'end' ? 'end' : 'start',
-        ...(kind === 'range' && typeof schema?.minimum === 'number' ? { rangeMin: schema.minimum } : {}),
-        ...(kind === 'range' && typeof schema?.maximum === 'number' ? { rangeMax: schema.maximum } : {}),
-        ...(kind === 'range' && typeof subOptions?.step === 'number' ? { rangeStep: subOptions.step } : {}),
-        ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.source === 'string' ? { optionsSource: subOptions.source } : {}),
-        ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.valueKey === 'string' ? { optionsValueKey: subOptions.valueKey } : {}),
-        ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.labelKey === 'string' ? { optionsLabelKey: subOptions.labelKey } : {}),
-        ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.itemTemplate === 'string' ? { optionsItemTemplate: subOptions.itemTemplate } : {}),
-      }
-    }),
-  })
+    return {
+      id: `field-${fieldSequence++}`,
+      path,
+      jsonPath: `$.${path}`,
+      label: typeof schema?.title === 'string' ? schema.title : titleFromSegment(path.split('.').at(-1) ?? path),
+      kind,
+      span,
+      align: field.align === 'end' ? 'end' : 'start',
+      ...(panelId ? { panelId } : {}),
+      ...(kind === 'range' && typeof schema?.minimum === 'number' ? { rangeMin: schema.minimum } : {}),
+      ...(kind === 'range' && typeof schema?.maximum === 'number' ? { rangeMax: schema.maximum } : {}),
+      ...(kind === 'range' && typeof subOptions?.step === 'number' ? { rangeStep: subOptions.step } : {}),
+      ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.source === 'string' ? { optionsSource: subOptions.source } : {}),
+      ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.valueKey === 'string' ? { optionsValueKey: subOptions.valueKey } : {}),
+      ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.labelKey === 'string' ? { optionsLabelKey: subOptions.labelKey } : {}),
+      ...((kind === 'autocomplete' || kind === 'asyncOptions') && typeof subOptions?.itemTemplate === 'string' ? { optionsItemTemplate: subOptions.itemTemplate } : {}),
+    }
+  }
 
   spec.layout.forEach((node, index) => {
     if (node.type === 'panel') {
       const panelId = node.id ?? `panel-${index + 1}`
       panels.push({ id: panelId, title: node.title ?? 'Untitled panel', ...(node.description ? { description: node.description } : {}) })
-      node.children.forEach((row) => rows.push(toBuilderRow(row, panelId)))
+      node.children.forEach((field) => fields.push(toBuilderField(field, panelId)))
       return
     }
-    rows.push(toBuilderRow(node, undefined))
+    fields.push(toBuilderField(node, undefined))
   })
 
-  return { rows, panels }
+  return { fields, panels }
 }
 
-export function buildFormSpec(rows: readonly BuilderRow[], panels: readonly BuilderPanel[] = [], baseSpec?: FormSpec): FormSpec {
+export function buildFormSpec(fields: readonly BuilderField[], panels: readonly BuilderPanel[] = [], baseSpec?: FormSpec): FormSpec {
   const schema = structuredClone(baseSpec?.schema ?? {}) as Record<string, unknown>
   const properties = schema.properties && typeof schema.properties === 'object' && !Array.isArray(schema.properties)
     ? schema.properties as Record<string, unknown>
@@ -289,7 +276,7 @@ export function buildFormSpec(rows: readonly BuilderRow[], panels: readonly Buil
   schema.properties = properties
   const uiSchema = structuredClone(baseSpec?.uiSchema ?? {}) as Record<string, unknown>
 
-  rows.flatMap((row) => row.fields).forEach((field) => {
+  fields.forEach((field) => {
     setNested(properties, field.path, schemaForField(field, schemaAtPath(schema as JsonObject, field.path)))
     const currentUi = valueAtPath(uiSchema as JsonObject, field.path)
     const uiOptions: Record<string, unknown> = currentUi && typeof currentUi === 'object' && !Array.isArray(currentUi)
@@ -323,41 +310,36 @@ export function buildFormSpec(rows: readonly BuilderRow[], panels: readonly Buil
     setUiOption(uiSchema, field.path, uiOptions)
   })
 
-  const toRowNode = (row: BuilderRow) => ({
-    type: 'row' as const,
-    id: row.id,
-    children: row.fields.map((field) => ({
-      type: 'column' as const,
-      id: `${row.id}.${field.id}`,
-      span: { mobile: 12, tablet: field.span, desktop: field.span },
-      align: field.align,
-      children: [{ type: 'field' as const, id: field.id, path: field.path }],
-    })),
+  const toFieldNode = (field: BuilderField) => ({
+    type: 'field' as const,
+    id: field.id,
+    path: field.path,
+    span: { mobile: 12, tablet: field.span, desktop: field.span },
+    align: field.align,
   })
 
   const layout: (FormSpec['layout'][number])[] = []
-  const nonEmptyRows = rows.filter((row) => row.fields.length > 0)
   let index = 0
-  while (index < nonEmptyRows.length) {
-    const row = nonEmptyRows[index]
-    if (!row) break
-    if (!row.panelId) {
-      layout.push(toRowNode(row))
+  while (index < fields.length) {
+    const field = fields[index]
+    if (!field) break
+    if (!field.panelId) {
+      layout.push(toFieldNode(field))
       index += 1
       continue
     }
-    const panelRows: typeof nonEmptyRows = []
-    while (index < nonEmptyRows.length && nonEmptyRows[index]?.panelId === row.panelId) {
-      panelRows.push(nonEmptyRows[index]!)
+    const panelFields: BuilderField[] = []
+    while (index < fields.length && fields[index]?.panelId === field.panelId) {
+      panelFields.push(fields[index]!)
       index += 1
     }
-    const panel = panels.find((item) => item.id === row.panelId)
+    const panel = panels.find((item) => item.id === field.panelId)
     layout.push({
       type: 'panel',
-      id: row.panelId,
+      id: field.panelId,
       title: panel?.title ?? 'Untitled panel',
       ...(panel?.description ? { description: panel.description } : {}),
-      children: panelRows.map(toRowNode),
+      children: panelFields.map(toFieldNode),
     })
   }
 
@@ -370,40 +352,28 @@ export function buildFormSpec(rows: readonly BuilderRow[], panels: readonly Buil
   }
 }
 
-export function formSpecToYaml(rows: readonly BuilderRow[], panels: readonly BuilderPanel[] = [], baseSpec?: FormSpec): string {
-  return stringify(buildFormSpec(rows, panels, baseSpec), { lineWidth: 0 })
+export function formSpecToYaml(fields: readonly BuilderField[], panels: readonly BuilderPanel[] = [], baseSpec?: FormSpec): string {
+  return stringify(buildFormSpec(fields, panels, baseSpec), { lineWidth: 0 })
 }
 
 export function defaultSpan(kind: FieldKind): number {
   return FIELD_KINDS.find((item) => item.kind === kind)?.span ?? 6
 }
 
-/** Mirrors the AForm renderer's placement: "end"-aligned fields hug the row's right edge instead of packing left. */
-export function fieldGridColumns(fields: readonly BuilderField[]): Record<string, string> {
-  const columns: Record<string, string> = {}
-  let startCursor = 1
-  let endCursor = 13
-  for (const field of fields) {
-    if (field.align === 'end') {
-      endCursor -= field.span
-      columns[field.id] = `${endCursor} / ${endCursor + field.span}`
-    } else {
-      columns[field.id] = `${startCursor} / ${startCursor + field.span}`
-      startCursor += field.span
-    }
-  }
-  return columns
+/** Mirrors the AForm renderer: "end"-aligned fields hug the grid's right edge (column 13), everything else packs left-to-right and wraps on its own. */
+export function fieldGridColumn(field: BuilderField): string {
+  return field.align === 'end' ? `span ${field.span} / -1` : `span ${field.span}`
 }
 
-/** Groups consecutive rows sharing the same panelId so the canvas can wrap them in one visual frame. */
-export function groupRowsByPanel(rows: readonly BuilderRow[]): readonly { panelId?: string; rows: readonly BuilderRow[] }[] {
-  const groups: { panelId?: string; rows: BuilderRow[] }[] = []
-  for (const row of rows) {
+/** Groups consecutive fields sharing the same panelId so the canvas can wrap them in one visual frame. */
+export function groupFieldsByPanel(fields: readonly BuilderField[]): readonly { panelId?: string; fields: readonly BuilderField[] }[] {
+  const groups: { panelId?: string; fields: BuilderField[] }[] = []
+  for (const field of fields) {
     const last = groups.at(-1)
-    if (row.panelId && last?.panelId === row.panelId) {
-      last.rows.push(row)
+    if (field.panelId && last?.panelId === field.panelId) {
+      last.fields.push(field)
     } else {
-      groups.push({ ...(row.panelId ? { panelId: row.panelId } : {}), rows: [row] })
+      groups.push({ ...(field.panelId ? { panelId: field.panelId } : {}), fields: [field] })
     }
   }
   return groups

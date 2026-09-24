@@ -6,7 +6,7 @@ export function TouchDragOverlay({ drag }: { drag: TouchDragState }) {
   return (
     <div className="builder-touch-overlay" style={style} aria-hidden="true">
       <span>{drag.payload.label}</span>
-      <small>{drag.target ? `Row ${drag.target.rowId.replace('row-', '')} / column ${drag.target.slot + 1}` : 'Move over a grid row'}</small>
+      <small>{drag.target ? `Insert at position ${drag.target.index + 1}` : 'Move over the canvas'}</small>
     </div>
   )
 }
