@@ -1,6 +1,6 @@
 {
   "name": "a-form-parser",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "exports": {
     ".": {
@@ -16,7 +16,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "a-form-core": "^0.3.0",
+    "a-form-core": "^0.3.1",
     "yaml": "^2.8.1"
   }
 }
