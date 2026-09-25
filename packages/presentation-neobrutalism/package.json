@@ -1,6 +1,6 @@
 {
   "name": "a-form-presentation-neobrutalism",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "repository": {
     "directory": "packages/presentation-neobrutalism",
@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@rjsf/utils": "^6.10.0",
-    "a-form-react": "^0.4.0"
+    "a-form-react": "^0.4.1"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

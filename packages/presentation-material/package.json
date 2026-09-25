@@ -1,6 +1,6 @@
 {
   "name": "a-form-presentation-material",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "repository": {
     "directory": "packages/presentation-material",
@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@rjsf/mui": "^6.10.1",
-    "a-form-react": "^0.4.0"
+    "a-form-react": "^0.4.1"
   },
   "peerDependencies": {
     "@emotion/react": "^11.7.0",
