@@ -28,15 +28,4 @@ npm run build --workspace a-form-playground
 ```
 
 
-## Publish
-
-```bash
-npm login 
-npm run version:bump
-npm run build
-
-npm pack --workspaces
-npm publish --workspaces
-```
-
 The production output is written to `apps/playground/dist`. The current GitHub Pages workflow still deploys `apps/playground/dist`.

@@ -2,6 +2,11 @@
   "name": "a-form-core",
   "version": "0.3.1",
   "type": "module",
+  "repository": {
+    "directory": "packages/core",
+    "url": "git+https://github.com/alansferreira/a-form.git",
+    "type": "git"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

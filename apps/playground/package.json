@@ -3,6 +3,11 @@
   "private": true,
   "version": "0.3.1",
   "type": "module",
+  "repository": {
+    "directory": "apps/playground",
+    "url": "git+https://github.com/alansferreira/a-form.git",
+    "type": "git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

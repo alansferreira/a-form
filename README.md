@@ -432,3 +432,14 @@ Run only the React package checks:
 npm run typecheck --workspace a-form-react
 npm test -- --run packages/react/src/AForm.test.tsx
 ```
+
+## Publish
+
+```bash
+npm login 
+npm run version:bump
+npm run build
+
+npm pack --workspaces
+npm publish --workspaces
+```
