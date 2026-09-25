@@ -1,6 +1,8 @@
 import type { FormSpec, JsonObject, NormalizedFormSpec } from 'a-form-core'
 import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'a-form-parser'
 import { AForm } from 'a-form-react'
+import * as yaml from 'yaml';
+
 import { PresentationAdapterRegistry } from 'a-form-react'
 import { NeobrutalismAdapter } from 'a-form-presentation-neobrutalism'
 import { BootstrapAdapter } from 'a-form-presentation-bootstrap'
@@ -136,21 +138,34 @@ function payloadKey(payload: PalettePayload): string {
   return payload.source === 'canvas' ? payload.fieldId ?? '' : payload.jsonPath ?? payload.kind
 }
 
-function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport: Viewport; theme: PreviewTheme }) {
+function Preview({ 
+  spec, 
+  viewport, 
+  theme, 
+  onChange 
+}: { 
+  spec: NormalizedFormSpec; 
+  viewport: Viewport; 
+  theme: PreviewTheme, 
+  onChange?: (value: JsonObject) => void 
+}) {
   const [value, setValue] = useState<JsonObject>({})
   return (
     <div className={`builder-preview-frame builder-preview-${viewport}`}>
       <div className={`builder-form-canvas builder-theme-${theme}`}>
         <div className="builder-form-heading">
           <span>LIVE FORM / 01</span>
-          <h2>Untitled form</h2>
+          <h2>{spec.schema?.title ? spec.schema?.title as string : 'Untitled form'}</h2>
           <p>Generated from the current virtual grid.</p>
         </div>
           <AForm
             spec={spec}
             viewport={viewport}
             value={value}
-            onChange={setValue}
+            onChange={(value) => {
+              setValue(value)
+              onChange?.(value)
+            }}
             noHtml5Validate
             presentation={theme === 'amber-tech-high-contrast' || theme === 'tailwind' || theme === 'bootstrap' || theme === 'material'
               ? { registry: presentationRegistry, adapterId: theme === 'amber-tech-high-contrast' ? 'neobrutalism' : theme }
@@ -163,6 +178,7 @@ function Preview({ spec, viewport, theme }: { spec: NormalizedFormSpec; viewport
 
 export function BuilderApp() {
   const [dataDocument, setDataDocument] = useState<StructuredDocument>({ source: exampleData, format: 'yaml' })
+  const [, setPreviewOutputDocument] = useState<StructuredDocument>({ source: exampleData, format: 'yaml' })
   const [fields, setFields] = useState<readonly BuilderField[]>(initialFields)
   const [panels, setPanels] = useState<readonly BuilderPanel[]>([])
   const [baseSpec, setBaseSpec] = useState<FormSpec>()
@@ -205,6 +221,8 @@ export function BuilderApp() {
         ...current,
         source: current.format === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
       }))
+    } else {
+      applySpecDocument(codeDocument)
     }
     setView(nextView)
   }
@@ -618,7 +636,12 @@ export function BuilderApp() {
               />
             </div>
           ) : (
-            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} /></div>
+            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} onChange={
+              (value) => {
+                console.log('Preview value changed:');
+                console.log(value);
+                setPreviewOutputDocument({...dataDocument, source: yaml.stringify(value, { indent: 2})})
+              }} /></div>
           )}
         </section>
 
