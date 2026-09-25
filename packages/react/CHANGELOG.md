@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/alansferreira/a-form/compare/v0.3.1...v0.4.0) (2026-09-25)
+
+### Bug Fixes
+
+* add git repo refs to packages
+
+
 ## [0.3.1](https://github.com/alansferreira/a-form/compare/v0.3.0...v0.3.1) (2026-09-25)
 
 **Note:** Version bump only for package a-form-react

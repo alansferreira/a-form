@@ -1,13 +1,12 @@
 {
   "name": "a-form-template",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "repository": {
     "directory": "packages/template",
     "url": "git+https://github.com/alansferreira/a-form.git",
     "type": "git"
   },
-
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -22,7 +21,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "a-form-core": "^0.3.1",
+    "a-form-core": "^0.4.0",
     "mustache": "^4.2.0"
   },
   "devDependencies": {

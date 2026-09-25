@@ -1,6 +1,6 @@
 {
   "name": "a-form-presentation-bootstrap",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "repository": {
     "directory": "packages/presentation-bootstrap",
@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@rjsf/react-bootstrap": "^6.10.1",
-    "a-form-react": "^0.3.1"
+    "a-form-react": "^0.4.0"
   },
   "peerDependencies": {
     "bootstrap": "^5.3.0",
