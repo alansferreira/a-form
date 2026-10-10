@@ -2,8 +2,9 @@ import type {
   ColumnAlign,
   Diagnostic,
   FieldNode,
-  PanelNode,
+  LayoutNode,
   ResponsiveSpan,
+  SeparatorNode,
   SourceRange,
 } from "a-form-core";
 
@@ -25,7 +26,7 @@ interface RawNode {
 }
 
 export interface ParseEmmetResult {
-  readonly value?: readonly (FieldNode | PanelNode)[];
+  readonly value?: readonly LayoutNode[];
   readonly diagnostics: readonly Diagnostic[];
 }
 
@@ -271,42 +272,75 @@ function convertField(node: RawNode, diagnostics: Diagnostic[], source: string):
   };
 }
 
-function convertPanel(node: RawNode, diagnostics: Diagnostic[], source: string): PanelNode | undefined {
-  if (node.name !== "panel") {
+function convertSeparator(node: RawNode, diagnostics: Diagnostic[], source: string): SeparatorNode | undefined {
+  const title = node.attributes.title;
+  if (!title?.trim()) {
     diagnostics.push({
-      code: "YF_EMMET_ROOT",
-      message: "The Emmet layout root may only contain field or panel nodes.",
+      code: "YF_EMMET_SEPARATOR_TITLE",
+      message: "separator requires a non-empty title attribute.",
       severity: "error",
       path: [],
       range: rangeAt(source, node.start, node.end),
     });
-    return undefined;
   }
+  if (node.children.length > 0) {
+    diagnostics.push({
+      code: "YF_EMMET_SEPARATOR_CHILDREN",
+      message: "separator cannot contain children.",
+      severity: "error",
+      path: [],
+      range: rangeAt(source, node.start, node.end),
+    });
+  }
+  if (!title?.trim()) return undefined;
+  return {
+    type: "separator",
+    ...(node.attributes.id ? { id: node.attributes.id } : {}),
+    title,
+    ...(node.attributes.description ? { description: node.attributes.description } : {}),
+  };
+}
+
+function convertLegacyPanel(node: RawNode, diagnostics: Diagnostic[], source: string): readonly LayoutNode[] {
   const children = node.children
     .map((child): FieldNode | undefined => child.name === "field"
       ? convertField(child, diagnostics, source)
       : (diagnostics.push({
           code: "YF_EMMET_PANEL_CHILD",
-          message: "panel may only contain field nodes.",
+          message: "Legacy panel syntax may only contain field nodes.",
           severity: "error",
           path: [],
           range: rangeAt(source, child.start, child.end),
         }), undefined))
     .filter((value): value is FieldNode => value !== undefined);
-  return {
-    type: "panel",
+  diagnostics.push({
+    code: "YF_EMMET_PANEL_MIGRATED",
+    message: "Legacy panel syntax converted to a titled separator followed by independent fields.",
+    severity: "info",
+    path: [],
+    range: rangeAt(source, node.start, node.end),
+  });
+  return [{
+    type: "separator",
     ...(node.attributes.id ? { id: node.attributes.id } : {}),
-    ...(node.attributes.title ? { title: node.attributes.title } : {}),
-    children,
-  };
+    title: node.attributes.title ?? "Section",
+    ...(node.attributes.description ? { description: node.attributes.description } : {}),
+  }, ...children];
 }
 
-function convertTopLevel(node: RawNode, diagnostics: Diagnostic[], source: string): FieldNode | PanelNode | undefined {
-  if (node.name === "field") return convertField(node, diagnostics, source);
-  if (node.name === "panel") return convertPanel(node, diagnostics, source);
+function convertTopLevel(node: RawNode, diagnostics: Diagnostic[], source: string): readonly LayoutNode[] | undefined {
+  if (node.name === "field") {
+    const field = convertField(node, diagnostics, source);
+    return field ? [field] : undefined;
+  }
+  if (node.name === "separator") {
+    const separator = convertSeparator(node, diagnostics, source);
+    return separator ? [separator] : undefined;
+  }
+  if (node.name === "panel") return convertLegacyPanel(node, diagnostics, source);
   diagnostics.push({
     code: "YF_EMMET_ROOT",
-    message: "The Emmet layout root may only contain field or panel nodes.",
+    message: "The Emmet layout root may only contain field or separator nodes.",
     severity: "error",
     path: [],
     range: rangeAt(source, node.start, node.end),
@@ -320,7 +354,8 @@ export function parseEmmetLayout(source: string): ParseEmmetResult {
   const diagnostics = [...parser.diagnostics];
   const value = rawNodes
     .map((node) => convertTopLevel(node, diagnostics, source))
-    .filter((node): node is FieldNode | PanelNode => node !== undefined);
+    .filter((nodes): nodes is readonly LayoutNode[] => nodes !== undefined)
+    .flat();
   return diagnostics.some(({ severity }) => severity === "error")
     ? { diagnostics }
     : { value, diagnostics };

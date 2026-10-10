@@ -74,3 +74,34 @@
   font: inherit;
   font-weight: 600;
 }
+
+.a-form-tailwind-separator {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  width: 100%;
+  margin: 1rem 0;
+  color: var(--a-form-tailwind-text);
+  font-size: .75rem;
+}
+
+.a-form-tailwind-separator-line {
+  flex: 1;
+  border-top: 1px solid var(--a-form-tailwind-border);
+}
+
+.a-form-tailwind-separator-content {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.a-form-tailwind-separator-title {
+  font-weight: 600;
+}
+
+.a-form-tailwind-separator-description {
+  color: #64748b;
+  font-size: .6875rem;
+}

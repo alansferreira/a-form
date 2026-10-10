@@ -45,7 +45,7 @@ describe('builder model', () => {
   })
 
   it('converts an existing spec into editable builder fields', () => {
-    const { fields, panels } = formSpecToBuilderFields({
+    const { fields, separators } = formSpecToBuilderFields({
       version: '1',
       schema: {
         type: 'object',
@@ -61,7 +61,7 @@ describe('builder model', () => {
       ],
     })
 
-    expect(panels).toEqual([])
+    expect(separators).toEqual([])
     expect(fields).toEqual([
       { id: 'field-1', path: 'email', jsonPath: '$.email', label: 'Work email', kind: 'email', span: 4, align: 'start' },
       { id: 'field-2', path: 'message', jsonPath: '$.message', label: 'Message', kind: 'textarea', span: 8, align: 'start' },
@@ -89,7 +89,7 @@ describe('builder model', () => {
     expect(rebuilt.validations).toEqual(baseSpec.validations)
   })
 
-  it('round-trips a panel grouping two fields', () => {
+  it('round-trips a titled separator between independent fields', () => {
     const baseSpec = {
       version: '1' as const,
       schema: {
@@ -99,31 +99,23 @@ describe('builder model', () => {
           phone: { type: 'string', title: 'Phone' },
         },
       },
-      layout: [{
-        type: 'panel' as const,
-        id: 'panel-1',
-        title: 'Contact',
-        children: [
-          { type: 'field' as const, path: 'email' },
-          { type: 'field' as const, path: 'phone' },
-        ],
-      }],
+      layout: [
+        { type: 'separator' as const, id: 'separator-1', title: 'Contact' },
+        { type: 'field' as const, path: 'email' },
+        { type: 'field' as const, path: 'phone' },
+      ],
     }
 
-    const { fields, panels } = formSpecToBuilderFields(baseSpec)
-    expect(panels).toEqual([{ id: 'panel-1', title: 'Contact' }])
-    expect(fields.every((field) => field.panelId === 'panel-1')).toBe(true)
+    const { fields, separators } = formSpecToBuilderFields(baseSpec)
+    expect(separators).toEqual([{ id: 'separator-1', title: 'Contact', beforeFieldId: 'field-1' }])
+    expect(fields.every((field) => !('panelId' in field))).toBe(true)
 
-    const rebuilt = buildFormSpec(fields, panels, baseSpec)
-    expect(rebuilt.layout).toEqual([{
-      type: 'panel',
-      id: 'panel-1',
-      title: 'Contact',
-      children: [
-        { type: 'field', id: 'field-1', path: 'email', span: { mobile: 12, tablet: 12, desktop: 12 }, align: 'start' },
-        { type: 'field', id: 'field-2', path: 'phone', span: { mobile: 12, tablet: 12, desktop: 12 }, align: 'start' },
-      ],
-    }])
+    const rebuilt = buildFormSpec(fields, separators, baseSpec)
+    expect(rebuilt.layout).toEqual([
+      { type: 'separator', id: 'separator-1', title: 'Contact' },
+      { type: 'field', id: 'field-1', path: 'email', span: { mobile: 12, tablet: 12, desktop: 12 }, align: 'start' },
+      { type: 'field', id: 'field-2', path: 'phone', span: { mobile: 12, tablet: 12, desktop: 12 }, align: 'start' },
+    ])
   })
 
   it('round-trips a range field with min/max/step', () => {

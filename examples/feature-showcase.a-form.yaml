@@ -65,37 +65,35 @@ uiSchema:
         max: 5000
         step: 100
 layout:
-  - type: panel
-    id: traveler-panel
+  - type: separator
+    id: traveler-section
     title: Traveler
-    children:
-      - type: field
-        path: trip.travelerName
-        span: { mobile: 12, tablet: 6 }
-      - type: field
-        path: trip.travelerEmail
-        span: { mobile: 12, tablet: 6 }
-  - type: panel
-    id: trip-panel
+  - type: field
+    path: trip.travelerName
+    span: { mobile: 12, tablet: 6 }
+  - type: field
+    path: trip.travelerEmail
+    span: { mobile: 12, tablet: 6 }
+  - type: separator
+    id: trip-section
     title: Trip details
     description: Dates, destination and budget for this trip.
-    children:
-      - type: field
-        path: trip.departureDate
-        span: { mobile: 12, tablet: 6 }
-      - type: field
-        path: trip.returnDate
-        span: { mobile: 12, tablet: 6 }
-      - type: field
-        path: trip.country
-        span: { mobile: 12, tablet: 6 }
-      - type: field
-        path: trip.city
-        span: { mobile: 12, tablet: 6 }
-      - type: field
-        path: trip.budget
-        span: { mobile: 12, tablet: 8 }
-      - type: field
-        path: trip.priority
-        span: { mobile: 12, tablet: 4 }
+  - type: field
+    path: trip.departureDate
+    span: { mobile: 12, tablet: 6 }
+  - type: field
+    path: trip.returnDate
+    span: { mobile: 12, tablet: 6 }
+  - type: field
+    path: trip.country
+    span: { mobile: 12, tablet: 6 }
+  - type: field
+    path: trip.city
+    span: { mobile: 12, tablet: 6 }
+  - type: field
+    path: trip.budget
+    span: { mobile: 12, tablet: 8 }
+  - type: field
+    path: trip.priority
+    span: { mobile: 12, tablet: 4 }
         align: end

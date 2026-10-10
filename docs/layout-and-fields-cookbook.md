@@ -2,7 +2,7 @@
 
 Copy-paste recipes for the layout and field features added on top of the base
 [presentation adapters quick start](./presentation-adapters-quick-start.md):
-right-aligned fields, visual panels, the `a-form-template` engine, templated
+right-aligned fields, titled separators, the `a-form-template` engine, templated
 help text, and the new field kinds (date/time/datetime/range/autocomplete/async
 options). A full combined example lives at
 [examples/feature-showcase.a-form.yaml](../examples/feature-showcase.a-form.yaml).
@@ -60,47 +60,50 @@ layout:
     align: end
 ```
 
-## Visual panels
+## Titled separators
 
-A `panel` layout node groups one or more fields behind a titled, bordered frame.
-Panels sit as siblings of plain fields at the top of `layout`.
+A `separator` is a full-width titled divider in the flat layout flow. It does not
+contain fields; fields before and after it remain independent and responsive.
 
 ```yaml
 layout:
-  - type: panel
-    id: traveler-panel
+  - type: field
+    path: trip.travelerName
+    span: { mobile: 12, tablet: 6 }
+  - type: field
+    path: trip.travelerEmail
+    span: { mobile: 12, tablet: 6 }
+  - type: separator
+    id: traveler-separator
     title: Traveler
     description: Who is this trip for?
-    children:
-      - type: field
-        path: trip.travelerName
-        span: { mobile: 12, tablet: 6 }
-      - type: field
-        path: trip.travelerEmail
-        span: { mobile: 12, tablet: 6 }
+  - type: field
+    path: trip.startDate
 ```
 
-The frame is decorative only (no real DOM nesting of the fields inside it).
-Override it per presentation adapter:
+Presentation adapters can provide a `SeparatorTemplate` for their own design
+system. The built-in adapters render this as a Bootstrap/Tailwind divider or a
+Material UI `Divider`:
 
 ```tsx
-import type { PanelTemplateProps } from "a-form-react";
+import type { SeparatorTemplateProps } from "a-form-react";
 
-function CardPanel({ title, description, children }: PanelTemplateProps) {
+function CustomSeparator({ id, title }: SeparatorTemplateProps) {
   return (
-    <div className="card">
-      {title && <h3>{title}</h3>}
-      {description && <p>{description}</p>}
-      {children}
+    <div className="custom-separator" role="separator" aria-label={title}>
+      <span id={`separator-${id}`}>{title}</span>
     </div>
   );
 }
 
 const CustomAdapter = {
   id: "custom",
-  templates: { PanelTemplate: CardPanel },
+  templates: { SeparatorTemplate: CustomSeparator },
 };
 ```
+
+YAML containing the legacy `panel` node is migrated during parsing to a titled
+separator followed by the panel's fields as independent layout entries.
 
 ## Date, time, datetime and range widgets
 
@@ -216,7 +219,7 @@ instead of silently creating a duplicate.
 ## Full combined example
 
 [examples/feature-showcase.a-form.yaml](../examples/feature-showcase.a-form.yaml)
-combines all of the above in one runnable spec: two panels ("Traveler" and
+combines all of the above in one runnable spec: two titled separators ("Traveler" and
 "Trip details"), a right-aligned `priority` field, `date` widgets, a `range`
 budget slider, an `asyncOptions` city field with a templated `source` and
 `ui:helpTemplate`. Load it as `yamlSource` in the snippet at the top of this

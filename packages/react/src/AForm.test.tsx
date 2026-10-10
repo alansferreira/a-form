@@ -104,22 +104,20 @@ describe("AForm", () => {
     expect(html).toMatch(/data-a-form-field="email" style="[^"]*grid-column:span 3 \/ -1/);
   });
 
-  it("renders a panel frame and tags its fields with the panel id", () => {
-    const panelSpec: NormalizedFormSpec = {
+  it("renders a titled separator before independent fields", () => {
+    const separatorSpec: NormalizedFormSpec = {
       ...spec,
-      layout: [{
-        type: "panel",
-        id: "contact",
-        title: "Contact info",
-        children: [{ type: "field", id: "email", path: "email", span: { mobile: 12, tablet: 12, desktop: 12 }, align: "start" }],
-      }],
+      layout: [
+        { type: "separator", id: "contact", title: "Contact info" },
+        { type: "field", id: "email", path: "email", span: { mobile: 12, tablet: 12, desktop: 12 }, align: "start" },
+      ],
     };
 
-    const html = renderToStaticMarkup(<AForm spec={panelSpec} viewport="desktop" />);
+    const html = renderToStaticMarkup(<AForm spec={separatorSpec} viewport="desktop" />);
 
-    expect(html).toContain('data-a-form-panel="contact"');
-    expect(html).toContain('class="a-form-panel-title" id="a-form-panel-title-contact">Contact info');
-    expect(html).toMatch(/data-a-form-field="email" data-a-form-panel="contact"/);
+    expect(html).toContain('class="a-form-separator-title" id="a-form-separator-title-contact">Contact info');
+    expect(html.indexOf('class="a-form-separator-item"')).toBeLessThan(html.indexOf('data-a-form-field="email"'));
+    expect(html).not.toContain("data-a-form-panel");
   });
 
   it("renders ui:helpTemplate interpolated against the whole form's data", () => {

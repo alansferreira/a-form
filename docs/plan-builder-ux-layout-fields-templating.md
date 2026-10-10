@@ -1,8 +1,10 @@
 # Plan: Builder UX + Layout + New Field Types + Templating
 
+> Historical note: the panel layout described in Phase 3 was superseded by flat, titled separator nodes. Current specs use `separator`; legacy YAML panels are migrated during parsing.
+
 TL;DR: Six related improvements to `apps/playground-v2` and its supporting packages:
 (1) make "Absolute path" editable, (2) add left/right grid alignment for columns,
-(3) add a new `panel` layout node for visual grouping, (4) add date/time/datetime/
+(3) replace visual panel groups with titled separator nodes, (4) add date/time/datetime/
 range-slider/autocomplete/async-options field kinds using dedicated per-adapter UI
 libraries, (5) add a lightweight templating package (Mustache) for help-text and
 URL/param interpolation across fields, reused by the async-options/autocomplete
@@ -13,7 +15,7 @@ widgets. Scope is limited to `playground-v2` (not v1/original playground).
 - Alignment is a **column-level, grid-slot** concept: a column with `align: "end"`
   consumes the last N slots of the 12-col row instead of the next N from the left.
   Not a text-align/CSS-only cosmetic change.
-- Panels are a **new layout node type** (`panel`), not just a style flag on row/column.
+- Separators are **flat layout nodes** that label field flow without owning or grouping fields; YAML panels are migrated during parsing.
 - Date/time/datetime picker + range slider: use **dedicated UI libraries** per
   presentation adapter (not native `<input type=date>`).
 - Autocomplete/async options: **no new engine package** — ad-hoc fetch configured
@@ -65,32 +67,24 @@ widgets. Scope is limited to `playground-v2` (not v1/original playground).
 
 ---
 
-## Phase 3 — `panel` layout node (visual grouping container) ✅ DONE (visual-only, no per-adapter chrome yet)
+## Phase 3 — Titled separators (replaces the former panel grouping)
 
-1. **Core type**: add `PanelNode` to [packages/core/src/index.ts](../packages/core/src/index.ts#L56):
-   `{ type: "panel"; id?: string; title?: string; description?: string; collapsible?: boolean; defaultCollapsed?: boolean; children: readonly RowNode[] }`.
-   Extend `LayoutNode` union and `FormSpec.layout` to `readonly (RowNode | PanelNode)[]`. Add `NormalizedPanelNode`.
-2. **Schema**: add a `panel` `$def` to [schemas/a-form.schema.json](../schemas/a-form.schema.json#L506) (title/description/collapsible + `children: [row]*`), and update the top-level `layout` array items to `oneOf [row, panel]`.
-3. **Parser**:
-   - [packages/parser/src/validate.ts](../packages/parser/src/validate.ts#L42) — path-existence/duplicate traversal must recurse into `panel.children` the same way it does rows.
-   - [packages/parser/src/normalize.ts](../packages/parser/src/normalize.ts#L28) — normalize panels (assign ids, normalize nested rows).
-   - [packages/parser/src/emmet.ts](../packages/parser/src/emmet.ts#L225) — extend compact syntax to support a panel marker (e.g. `panel:Title > row > ...`) if the emmet-like shorthand should support panels; otherwise document that panels require full YAML/JSON form.
-4. **React renderer** ([packages/react/src/AForm.tsx](../packages/react/src/AForm.tsx)): panels introduce a **nested grid boundary** — a panel wraps its own `repeat(12,...)` grid instance (bordered container with title), distinct from the flat root grid. Update root rendering to iterate top-level `spec.layout` items: rows contribute to the root grid as today; panels render as a bordered/titled wrapper containing their own sub-grid built from the same `collectLayout`/field-template logic scoped to `panel.children`.
-5. **Presentation adapters**: add optional `PanelTemplate` to `PresentationAdapter.templates` ([packages/react/src/presentation.ts](../packages/react/src/presentation.ts#L13)) so bootstrap/material/neobrutalism/tailwind can each render panel chrome consistently with their design system (e.g. Bootstrap `Card`, MUI `Paper`/`Accordion`, custom bordered `div` for neobrutalism/tailwind). Provide a sane default (plain `<fieldset><legend>`) when an adapter doesn't supply one.
-6. **Builder UI** (`apps/playground-v2/src/builder`): add "Panel" to the drag palette as a container; allow dropping rows inside a panel in the canvas; inspector fields for panel `title`/`description`/`collapsible`.
+The current layout uses `separator` nodes with required titles. Separators are
+full-width flow items; every field remains an independent top-level layout node.
+The renderer and presentation adapters provide a titled divider, and the builder
+anchors one before a stable field id. YAML and Emmet readers convert legacy
+panels to a separator followed by their former children as independent fields.
 
 **Relevant files**
-- `packages/core/src/index.ts` — `PanelNode`, `LayoutNode`, `FormSpec.layout`, `NormalizedPanelNode`
-- `schemas/a-form.schema.json` — new `panel` `$def`, layout array `oneOf`
-- `packages/parser/src/validate.ts`, `normalize.ts`, `emmet.ts`
-- `packages/react/src/AForm.tsx` — root layout iteration, nested-grid rendering
-- `packages/react/src/presentation.ts` — `PanelTemplate` addition to adapter interface
-- `packages/presentation-bootstrap|material|neobrutalism|tailwind/src/*` — panel chrome
-- `apps/playground-v2/src/builder/*` — palette entry, canvas drop target, inspector
+- `packages/core/src/index.ts` and `schemas/a-form.schema.json` — separator contract
+- `packages/parser/src/validate.ts`, `normalize.ts`, `emmet.ts`, `yaml.ts`
+- `packages/react/src/AForm.tsx` and `presentation.ts` — ordered rendering and adapter template
+- `packages/presentation-bootstrap|material|tailwind/src/*` — separator treatment
+- `apps/playground/src/builder/*` — separator insertion and editing
 
 **Verification**
-- Parser unit tests: duplicate-path detection still fires across panel boundaries; normalize produces stable ids for panels/nested rows.
-- Manual: build a form with two panels, each with its own rows/fields; confirm rendered output shows bordered/titled groups with correct internal grids, and exported YAML round-trips through the parser.
+- Parser tests cover native separator syntax, legacy-panel migration, and duplicate fields.
+- Renderer and builder tests cover separator order and flat field serialization.
 
 ---
 
@@ -144,6 +138,6 @@ widgets. Scope is limited to `playground-v2` (not v1/original playground).
 Phase 1 (quick win) → Phase 4 (small, unblocks Phase 5) → Phase 2 and Phase 3 (independent of each other, can interleave) → Phase 5 (widgets, largest surface area, touches all 4 presentation packages).
 
 ## Further Considerations
-1. **Panel nesting inside columns**: current design only allows panels as top-level `layout` siblings of rows (not nested inside a column alongside fields). If nested panels-in-columns are needed later, the schema/renderer would need another pass — flagged as out of scope for now unless you say otherwise.
+1. **Separator nesting**: separators are top-level flow items, not containers, so they cannot be nested around fields.
 2. **Template escaping default**: Mustache HTML-escapes `{{ }}` by default; plan uses **no escaping** by default with an explicit `urlEncode` helper for URL contexts. Confirm this fits both "help text" (plain text, no HTML risk) and "URL params" (needs percent-encoding) use cases before implementation.
 3. **Per-package UI libraries**: MUI already ships pickers/slider/autocomplete (no extra dependency choice needed there); for bootstrap/neobrutalism/tailwind the plan defaults to `react-datepicker` + `rc-slider` + a hand-built combobox. Say if you'd rather standardize on a single cross-framework headless lib (e.g. `react-aria`) instead for visual/behavioral consistency across all four adapters.

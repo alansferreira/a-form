@@ -54,7 +54,7 @@ const registration: FormSpec = {
 | --- | --- |
 | `FormSpec` | Complete versioned form contract |
 | `NormalizedFormSpec` | Form contract with stable node IDs and complete responsive spans |
-| `FieldNode`, `PanelNode` | Responsive layout tree (flat fields, optionally grouped into panels) |
+| `FieldNode`, `SeparatorNode` | Responsive flow of independent fields with optional titled separators |
 | `ResponsiveSpan` | Mobile, tablet, and desktop values for the 12-column grid |
 | `JsonValue`, `JsonObject` | Framework-neutral JSON values and form state |
 | `Diagnostic`, `DiagnosticSeverity` | Structured parser and validation feedback |

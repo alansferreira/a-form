@@ -29,9 +29,10 @@ import type {
   JsonValue,
   NormalizedFieldNode,
   NormalizedFormSpec,
+  NormalizedSeparatorNode,
 } from "a-form-core";
 import { renderTemplate } from "a-form-template";
-import type { PanelTemplateProps, PresentationConfig } from "./presentation.js";
+import type { PresentationConfig, SeparatorTemplateProps } from "./presentation.js";
 import { defaultWidgets } from "./widgets.js";
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
@@ -72,27 +73,17 @@ interface LayoutFormContext {
   readonly layoutPaths: readonly string[];
   readonly asyncFields: Readonly<Record<string, AsyncFieldState>>;
   readonly presentationFieldTemplate?: ComponentType<FieldTemplateProps>;
-  readonly panels: readonly PanelGroup[];
-  readonly pathToPanel: Readonly<Record<string, string>>;
-  readonly panelFrames: Readonly<Record<string, PanelFramePlacement>>;
-  readonly presentationPanelTemplate?: ComponentType<PanelTemplateProps>;
+  readonly separators: readonly SeparatorPlacement[];
+  readonly presentationSeparatorTemplate?: ComponentType<SeparatorTemplateProps>;
   readonly rootFormData: JsonObject;
 }
 
-interface PanelGroup {
-  readonly id: string;
-  readonly title?: string;
-  readonly description?: string;
-}
-
-interface PanelFramePlacement {
-  readonly rowStart: number;
-  readonly rowEnd: number;
+interface SeparatorPlacement extends NormalizedSeparatorNode {
   readonly order: number;
 }
 
-function panelTitleId(panelId: string): string {
-  return `a-form-panel-title-${panelId}`;
+function separatorTitleId(separatorId: string): string {
+  return `a-form-separator-title-${separatorId}`;
 }
 
 interface AsyncFieldState {
@@ -136,64 +127,32 @@ interface CollectedLayout {
   readonly fieldSpans: Record<string, number>;
   readonly fieldAlign: Record<string, ColumnAlign>;
   readonly order: Record<string, number>;
-  readonly panels: PanelGroup[];
-  readonly pathToPanel: Record<string, string>;
-  readonly panelFrames: Record<string, PanelFramePlacement>;
+  readonly separators: SeparatorPlacement[];
 }
 
 function spanForViewport(field: NormalizedFieldNode, viewport: AFormViewport): number {
   return field.span[viewport];
 }
 
-/**
- * Packs fields into 12-column rows exactly like the CSS grid engine will (greedy left-to-right,
- * wrapping once a row runs out of space), so the browser—not the spec author—decides line breaks.
- * The simulation only drives the decorative panel frame; actual fields rely on native grid auto-flow.
- */
+/** Assigns each field and separator its serialized flow order; CSS grid handles responsive wrapping. */
 function collectFormLayout(layout: NormalizedFormSpec["layout"], viewport: AFormViewport): CollectedLayout {
   const fieldSpans: Record<string, number> = {};
   const fieldAlign: Record<string, ColumnAlign> = {};
   const order: Record<string, number> = {};
-  const panels: PanelGroup[] = [];
-  const pathToPanel: Record<string, string> = {};
-  const panelFrames: Record<string, PanelFramePlacement> = {};
-  let cursor = 0;
-  let row = 1;
-
-  const placeField = (field: NormalizedFieldNode, panelId?: string): void => {
-    const span = spanForViewport(field, viewport);
-    if (cursor > 0 && cursor + span > 12) {
-      row += 1;
-      cursor = 0;
-    }
-    fieldSpans[field.path] = span;
-    fieldAlign[field.path] = field.align;
-    order[field.path] = Object.keys(order).length;
-    if (panelId) pathToPanel[field.path] = panelId;
-    cursor += span;
-  };
+  const separators: SeparatorPlacement[] = [];
+  let nextOrder = 0;
 
   for (const node of layout) {
-    if (node.type === "panel") {
-      if (cursor > 0) {
-        row += 1;
-        cursor = 0;
-      }
-      const rowStart = row;
-      const panelOrder = Object.keys(order).length;
-      node.children.forEach((field) => placeField(field, node.id));
-      panels.push({ id: node.id, ...(node.title !== undefined ? { title: node.title } : {}), ...(node.description !== undefined ? { description: node.description } : {}) });
-      panelFrames[node.id] = { rowStart, rowEnd: row + 1, order: panelOrder };
-      if (cursor > 0) {
-        row += 1;
-        cursor = 0;
-      }
-    } else {
-      placeField(node);
+    if (node.type === "separator") {
+      separators.push({ ...node, order: nextOrder++ });
+      continue;
     }
+    fieldSpans[node.path] = spanForViewport(node, viewport);
+    fieldAlign[node.path] = node.align;
+    order[node.path] = nextOrder++;
   }
 
-  return { fieldSpans, fieldAlign, order, panels, pathToPanel, panelFrames };
+  return { fieldSpans, fieldAlign, order, separators };
 }
 
 function relationToLayout(path: string, context: LayoutFormContext) {
@@ -236,7 +195,6 @@ function createFieldTemplate() {
       <div
         className={`a-form-field ${relation.exact ? "a-form-layout-field" : "a-form-nested-field"} ${props.classNames ?? ""}`}
         data-a-form-field={relation.exact ? path : undefined}
-        data-a-form-panel={relation.exact ? context.pathToPanel[path] : undefined}
         style={style}
       >
         {AdapterFieldTemplate ? <AdapterFieldTemplate {...templatedProps} /> : renderDefaultFieldContents(templatedProps)}
@@ -278,11 +236,15 @@ function renderDefaultFieldContents(props: FieldTemplateProps): ReactNode {
   );
 }
 
-function DefaultPanelTemplate({ id, title, description }: PanelTemplateProps): ReactNode {
+function DefaultSeparatorTemplate({ id, title, description }: SeparatorTemplateProps): ReactNode {
   return (
-    <div className="a-form-panel-frame">
-      {title && <span className="a-form-panel-title" id={panelTitleId(id)}>{title}</span>}
-      {description && <span className="a-form-panel-description">{description}</span>}
+    <div className="a-form-separator" role="separator" aria-orientation="horizontal" aria-label={title}>
+      <span className="a-form-separator-line" aria-hidden="true" />
+      <span className="a-form-separator-content">
+        <span className="a-form-separator-title" id={separatorTitleId(id)}>{title}</span>
+        {description && <span className="a-form-separator-description">{description}</span>}
+      </span>
+      <span className="a-form-separator-line" aria-hidden="true" />
     </div>
   );
 }
@@ -328,18 +290,19 @@ function createObjectFieldTemplate() {
           />
         )}
         {(props.readonly || props.disabled || !showMetadata) && props.optionalDataControl}
-        {path === "" && context.panels.map((panel) => {
-          const frame = context.panelFrames[panel.id];
-          if (!frame) return null;
-          const PanelComponent = context.presentationPanelTemplate ?? DefaultPanelTemplate;
+        {path === "" && context.separators.map((separator) => {
+          const SeparatorComponent = context.presentationSeparatorTemplate ?? DefaultSeparatorTemplate;
           return (
             <div
-              key={panel.id}
-              className="a-form-panel"
-              data-a-form-panel={panel.id}
-              style={{ gridColumn: "1 / 13", gridRow: `${frame.rowStart} / ${frame.rowEnd}`, order: frame.order, pointerEvents: "none" } as CSSProperties}
+              key={separator.id}
+              className="a-form-separator-item"
+              style={{ gridColumn: "1 / 13", order: separator.order }}
             >
-              <PanelComponent id={panel.id} {...(panel.title !== undefined ? { title: panel.title } : {})} {...(panel.description !== undefined ? { description: panel.description } : {})} />
+              <SeparatorComponent
+                id={separator.id}
+                title={separator.title}
+                {...(separator.description !== undefined ? { description: separator.description } : {})}
+              />
             </div>
           );
         })}
@@ -379,7 +342,11 @@ export function AForm({
   if (presentation && !presentationAdapter) {
     throw new Error(`Presentation adapter '${presentation.adapterId}' is not registered.`);
   }
-  const { ButtonTemplates: adapterButtonTemplates, ...adapterTemplates } = presentationAdapter?.templates ?? {};
+  const {
+    ButtonTemplates: adapterButtonTemplates,
+    SeparatorTemplate: adapterSeparatorTemplate,
+    ...adapterTemplates
+  } = presentationAdapter?.templates ?? {};
   const [records, setRecords] = useState<Readonly<Record<string, ValidationRecord>>>({});
   const [pending, setPending] = useState<Readonly<Record<string, string>>>({});
   const latestValue = useRef<JsonObject>(value ?? {});
@@ -454,7 +421,7 @@ export function AForm({
     }, debounceMs));
   };
 
-  const { fieldSpans, fieldAlign, order, panels, pathToPanel, panelFrames } = collectFormLayout(spec.layout, viewport);
+  const { fieldSpans, fieldAlign, order, separators } = collectFormLayout(spec.layout, viewport);
   const asyncFields: Record<string, AsyncFieldState> = {};
   Object.values(records).forEach(({ fieldPath, result }) => {
     const previous = asyncFields[fieldPath];
@@ -477,15 +444,13 @@ export function AForm({
     order,
     layoutPaths: Object.keys(fieldSpans),
     asyncFields,
-    panels,
-    pathToPanel,
-    panelFrames,
+    separators,
     rootFormData: value ?? {},
     ...(presentationAdapter?.templates?.FieldTemplate
       ? { presentationFieldTemplate: presentationAdapter.templates.FieldTemplate }
       : {}),
-    ...(presentationAdapter?.templates?.PanelTemplate
-      ? { presentationPanelTemplate: presentationAdapter.templates.PanelTemplate }
+    ...(adapterSeparatorTemplate
+      ? { presentationSeparatorTemplate: adapterSeparatorTemplate }
       : {}),
   };
   const extraErrors: ErrorSchema = {};

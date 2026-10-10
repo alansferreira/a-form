@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.2](https://github.com/alansferreira/a-form/compare/v0.4.1...v0.4.2) (2026-10-10)
+
+**Note:** Version bump only for package a-form
+
+
+
+
+
+## Unreleased
+
+### Breaking Changes
+
+- Replace the `panel` layout node with a flat titled `separator` node. YAML and Emmet parsers migrate legacy panels to a separator followed by independent fields.
+
 ## [0.4.1](https://github.com/alansferreira/a-form/compare/v0.4.0...v0.4.1) (2026-09-25)
 
 **Note:** Version bump only for package a-form

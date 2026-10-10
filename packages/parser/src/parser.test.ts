@@ -60,7 +60,7 @@ describe("YAML form specs", () => {
     expect(parsed.diagnostics[0]?.range?.start.line).toBe(1);
   });
 
-  it("validates and normalizes panels, recursing into their fields", () => {
+  it("migrates legacy panels to separators and independent fields", () => {
     const panelSource = validSource.replace(
       /layout:\n[\s\S]*?(?=validations:)/,
       `layout:
@@ -77,17 +77,18 @@ describe("YAML form specs", () => {
     );
 
     const parsed = parseYamlSpec(panelSource);
-    expect(parsed.diagnostics).toEqual([]);
+    expect(parsed.diagnostics).toMatchObject([{ code: "YF_LAYOUT_PANEL_MIGRATED", severity: "info" }]);
     expect(validateFormSpec(parsed.value!)).toEqual([]);
 
     const normalized = normalizeFormSpec(parsed.value!);
-    const panel = normalized.layout[0];
-    if (panel?.type !== "panel") throw new Error("expected a panel");
-    expect(panel.title).toBe("Contact");
-    expect(panel.children[0]?.id).toBe("panel-1.field-1");
+    const separator = normalized.layout[0];
+    if (separator?.type !== "separator") throw new Error("expected a separator");
+    expect(separator.title).toBe("Contact");
+    expect(normalized.layout.slice(1).map((node) => node.type)).toEqual(["field", "field"]);
+    expect(normalized.layout[1]?.id).toBe("field-2");
   });
 
-  it("detects duplicate field paths nested inside a panel", () => {
+  it("detects duplicate field paths after migrating a legacy panel", () => {
     const panelSource = validSource.replace(
       /layout:\n[\s\S]*?(?=validations:)/,
       `layout:
@@ -120,15 +121,26 @@ describe("Emmet layouts", () => {
     });
   });
 
-  it("parses a panel wrapping fields", () => {
-    const parsed = parseEmmetLayout("panel[title=Contact]>(field[path=person.name])+(field[path=person.email])");
+  it("parses a titled separator between independent fields", () => {
+    const parsed = parseEmmetLayout("field[path=person.name]+separator[title=Contact]+field[path=person.email]");
 
     expect(parsed.diagnostics).toEqual([]);
-    expect(parsed.value).toHaveLength(1);
-    const panel = parsed.value?.[0];
-    if (panel?.type !== "panel") throw new Error("expected a panel");
-    expect(panel.children).toHaveLength(2);
-    expect(panel.children[1]).toEqual({ type: "field", path: "person.email" });
+    expect(parsed.value).toEqual([
+      { type: "field", path: "person.name" },
+      { type: "separator", title: "Contact" },
+      { type: "field", path: "person.email" },
+    ]);
+  });
+
+  it("migrates legacy Emmet panels to a separator and independent fields", () => {
+    const parsed = parseEmmetLayout("panel[title=Contact]>(field[path=person.name])+(field[path=person.email])");
+
+    expect(parsed.diagnostics).toMatchObject([{ code: "YF_EMMET_PANEL_MIGRATED", severity: "info" }]);
+    expect(parsed.value).toEqual([
+      { type: "separator", title: "Contact" },
+      { type: "field", path: "person.name" },
+      { type: "field", path: "person.email" },
+    ]);
   });
 
   it("reports invalid hierarchy with a source range", () => {

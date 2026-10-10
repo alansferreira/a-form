@@ -35,7 +35,7 @@ function validateLayout(spec: FormSpec, diagnostics: Diagnostic[]): void {
 
   const visitField = (field: FieldNode, path: readonly (number | string)[]): void => {
     if (field.type !== "field" || typeof field.path !== "string" || field.path.length === 0) {
-      addError(diagnostics, "YF_LAYOUT_FIELD", "A layout entry must be a field or panel.", path);
+      addError(diagnostics, "YF_LAYOUT_FIELD", "A layout entry must be a field or separator.", path);
       return;
     }
     const span = typeof field.span === "number" ? { mobile: field.span } : field.span;
@@ -66,12 +66,10 @@ function validateLayout(spec: FormSpec, diagnostics: Diagnostic[]): void {
 
   spec.layout.forEach((node, index) => {
     const nodePath = ["layout", index];
-    if (node.type === "panel") {
-      if (!Array.isArray(node.children)) {
-        addError(diagnostics, "YF_LAYOUT_PANEL", "A layout panel must contain a children array.", nodePath);
-        return;
+    if (node.type === "separator") {
+      if (typeof node.title !== "string" || node.title.trim().length === 0) {
+        addError(diagnostics, "YF_LAYOUT_SEPARATOR_TITLE", "A layout separator must have a non-empty title.", [...nodePath, "title"]);
       }
-      node.children.forEach((field, fieldIndex) => visitField(field, [...nodePath, "children", fieldIndex]));
       return;
     }
     visitField(node, nodePath);
@@ -109,7 +107,7 @@ export function validateFormSpec(spec: FormSpec): readonly Diagnostic[] {
     addError(diagnostics, "YF_SPEC_SCHEMA", "schema must be a JSON object.", ["schema"]);
   }
   if (!Array.isArray(spec.layout)) {
-    addError(diagnostics, "YF_SPEC_LAYOUT", "layout must be an array of fields or panels.", ["layout"]);
+    addError(diagnostics, "YF_SPEC_LAYOUT", "layout must be an array of fields or separators.", ["layout"]);
     return diagnostics;
   }
   validateLayout(spec, diagnostics);

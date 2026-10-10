@@ -46,17 +46,14 @@ export interface FieldNode {
   readonly align?: ColumnAlign;
 }
 
-export interface PanelNode {
-  readonly type: "panel";
+export interface SeparatorNode {
+  readonly type: "separator";
   readonly id?: string;
-  readonly title?: string;
+  readonly title: string;
   readonly description?: string;
-  readonly collapsible?: boolean;
-  readonly defaultCollapsed?: boolean;
-  readonly children: readonly FieldNode[];
 }
 
-export type LayoutNode = FieldNode | PanelNode;
+export type LayoutNode = FieldNode | SeparatorNode;
 
 export type AsyncValidationTrigger = "change" | "blur" | "submit" | "manual";
 export type AsyncValidationFailurePolicy = "block" | "warning";
@@ -77,7 +74,7 @@ export interface FormSpec {
   readonly version: "1";
   readonly schema: JsonObject;
   readonly uiSchema?: JsonObject;
-  readonly layout: readonly (FieldNode | PanelNode)[];
+  readonly layout: readonly LayoutNode[];
   readonly validations?: {
     readonly async?: readonly AsyncValidationRuleSpec[];
   };
@@ -95,11 +92,10 @@ export interface NormalizedFieldNode extends Omit<FieldNode, "id" | "span" | "al
   readonly align: ColumnAlign;
 }
 
-export interface NormalizedPanelNode extends Omit<PanelNode, "children" | "id"> {
+export interface NormalizedSeparatorNode extends Omit<SeparatorNode, "id"> {
   readonly id: string;
-  readonly children: readonly NormalizedFieldNode[];
 }
 
 export interface NormalizedFormSpec extends Omit<FormSpec, "layout"> {
-  readonly layout: readonly (NormalizedFieldNode | NormalizedPanelNode)[];
+  readonly layout: readonly (NormalizedFieldNode | NormalizedSeparatorNode)[];
 }

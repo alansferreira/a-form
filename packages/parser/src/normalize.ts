@@ -3,10 +3,10 @@ import type {
   FormSpec,
   NormalizedFieldNode,
   NormalizedFormSpec,
-  NormalizedPanelNode,
+  NormalizedSeparatorNode,
   NormalizedResponsiveSpan,
-  PanelNode,
   ResponsiveSpan,
+  SeparatorNode,
 } from "a-form-core";
 
 function normalizeSpan(span: ResponsiveSpan | number | undefined): NormalizedResponsiveSpan {
@@ -29,19 +29,18 @@ function normalizeField(field: FieldNode, path: string): NormalizedFieldNode {
   };
 }
 
-function normalizePanel(panel: PanelNode, path: string): NormalizedPanelNode {
+function normalizeSeparator(separator: SeparatorNode, path: string): NormalizedSeparatorNode {
   return {
-    ...panel,
-    id: panel.id ?? path,
-    children: panel.children.map((field, index) => normalizeField(field, `${path}.field-${index + 1}`)),
+    ...separator,
+    id: separator.id ?? path,
   };
 }
 
 export function normalizeFormSpec(spec: FormSpec): NormalizedFormSpec {
   return {
     ...spec,
-    layout: spec.layout.map((node, index) => node.type === "panel"
-      ? normalizePanel(node, `panel-${index + 1}`)
+    layout: spec.layout.map((node, index) => node.type === "separator"
+      ? normalizeSeparator(node, `separator-${index + 1}`)
       : normalizeField(node, `field-${index + 1}`)),
   };
 }

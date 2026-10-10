@@ -15,6 +15,18 @@ describe('touch drag targeting', () => {
     }
   })
 
+  it('resolves the separator insertion slot from the element under the pointer', () => {
+    document.body.innerHTML = '<button data-builder-drop-index="3"><span id="handle"></span></button>'
+    const handle = document.getElementById('handle')!
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = () => handle
+    try {
+      expect(targetAtPoint(10, 10)).toEqual({ index: 3 })
+    } finally {
+      document.elementFromPoint = originalElementFromPoint
+    }
+  })
+
   it('returns undefined when the pointer is not over a drop zone', () => {
     document.body.innerHTML = '<div id="outside"></div>'
     const outside = document.getElementById('outside')!

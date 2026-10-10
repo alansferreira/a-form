@@ -1,10 +1,10 @@
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
-import type { PalettePayload } from './model'
+import type { BuilderDragPayload } from './model'
 import { targetAtPoint } from './touch-drag'
 import type { TouchDragState, TouchDropTarget } from './touch-drag'
 
-export function useTouchDrag(onDrop: (payload: PalettePayload, target: TouchDropTarget) => void) {
+export function useTouchDrag(onDrop: (payload: BuilderDragPayload, target: TouchDropTarget) => void) {
   const [state, setState] = useState<TouchDragState>()
   const stateRef = useRef<TouchDragState | undefined>(undefined)
   const onDropRef = useRef(onDrop)
@@ -53,7 +53,7 @@ export function useTouchDrag(onDrop: (payload: PalettePayload, target: TouchDrop
     document.body.classList.remove('builder-touch-dragging')
   }, [])
 
-  const bindTouchHandle = (payload: PalettePayload) => ({
+  const bindTouchHandle = (payload: BuilderDragPayload) => ({
     onPointerDown(event: ReactPointerEvent<HTMLElement>) {
       if (event.pointerType === 'mouse' || !event.isPrimary) return
       event.preventDefault()

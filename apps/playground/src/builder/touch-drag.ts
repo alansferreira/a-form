@@ -1,9 +1,9 @@
-import type { PalettePayload } from './model'
+import type { BuilderDragPayload } from './model'
 
 export interface TouchDragState {
   readonly x: number
   readonly y: number
-  readonly payload: PalettePayload
+  readonly payload: BuilderDragPayload
   readonly target?: TouchDropTarget
 }
 

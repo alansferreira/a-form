@@ -18,6 +18,39 @@ export interface ParseYamlResult {
   readonly diagnostics: readonly Diagnostic[];
 }
 
+function migrateLegacyPanels(value: Record<string, unknown>): { value: FormSpec; diagnostics: Diagnostic[] } {
+  if (!Array.isArray(value.layout)) return { value: value as unknown as FormSpec, diagnostics: [] };
+
+  const layout: unknown[] = [];
+  const diagnostics: Diagnostic[] = [];
+  value.layout.forEach((node, index) => {
+    if (node === null || typeof node !== "object" || Array.isArray(node)) {
+      layout.push(node);
+      return;
+    }
+    const legacyPanel = node as Record<string, unknown>;
+    if (legacyPanel.type !== "panel" || !Array.isArray(legacyPanel.children)) {
+      layout.push(node);
+      return;
+    }
+
+    layout.push({
+      type: "separator",
+      ...(typeof legacyPanel.id === "string" ? { id: legacyPanel.id } : {}),
+      title: typeof legacyPanel.title === "string" ? legacyPanel.title : "Section",
+      ...(typeof legacyPanel.description === "string" ? { description: legacyPanel.description } : {}),
+    }, ...legacyPanel.children);
+    diagnostics.push({
+      code: "YF_LAYOUT_PANEL_MIGRATED",
+      message: "Legacy panel converted to a titled separator followed by independent fields.",
+      severity: "info",
+      path: ["layout", index],
+    });
+  });
+
+  return { value: { ...value, layout } as unknown as FormSpec, diagnostics };
+}
+
 function sourcePosition(lineCounter: LineCounter, offset: number): SourcePosition {
   const position = lineCounter.linePos(offset);
   return {
@@ -136,5 +169,6 @@ export function parseYamlSpec(source: string, options: ParseYamlOptions = {}): P
     };
   }
 
-  return { value: value as FormSpec, diagnostics };
+  const migrated = migrateLegacyPanels(value as Record<string, unknown>);
+  return { value: migrated.value, diagnostics: migrated.diagnostics };
 }

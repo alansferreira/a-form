@@ -21,7 +21,6 @@ export interface BuilderField {
   readonly kind: FieldKind
   readonly span: number
   readonly align: 'start' | 'end'
-  readonly panelId?: string
   readonly sampleValue?: JsonValue
   readonly rangeMin?: number
   readonly rangeMax?: number
@@ -32,10 +31,11 @@ export interface BuilderField {
   readonly optionsItemTemplate?: string
 }
 
-export interface BuilderPanel {
+export interface BuilderSeparator {
   readonly id: string
   readonly title: string
   readonly description?: string
+  readonly beforeFieldId?: string
 }
 
 export interface PalettePayload {
@@ -47,6 +47,14 @@ export interface PalettePayload {
   readonly sampleValue?: JsonValue
   readonly fieldId?: string
 }
+
+export interface SeparatorDragPayload {
+  readonly source: 'separator'
+  readonly separatorId: string
+  readonly label: string
+}
+
+export type BuilderDragPayload = PalettePayload | SeparatorDragPayload
 
 export const FIELD_KINDS: readonly { kind: FieldKind; label: string; span: number }[] = [
   { kind: 'text', label: 'Text', span: 6 },
@@ -222,12 +230,12 @@ function uiSubOptions(spec: FormSpec, path: string): Record<string, unknown> | u
   return subOptions && typeof subOptions === 'object' && !Array.isArray(subOptions) ? subOptions as Record<string, unknown> : undefined
 }
 
-export function formSpecToBuilderFields(spec: FormSpec): { fields: readonly BuilderField[]; panels: readonly BuilderPanel[] } {
+export function formSpecToBuilderFields(spec: FormSpec): { fields: readonly BuilderField[]; separators: readonly BuilderSeparator[] } {
   let fieldSequence = 1
-  const panels: BuilderPanel[] = []
   const fields: BuilderField[] = []
+  const fieldIdsByPath = new Map<string, string>()
 
-  const toBuilderField = (field: Extract<FormSpec['layout'][number], { type: 'field' }>, panelId: string | undefined): BuilderField => {
+  const toBuilderField = (field: Extract<FormSpec['layout'][number], { type: 'field' }>): BuilderField => {
     const path = field.path
     const schema = schemaAtPath(spec.schema, path)
     const span = typeof field.span === 'number'
@@ -236,15 +244,16 @@ export function formSpecToBuilderFields(spec: FormSpec): { fields: readonly Buil
     const kind = fieldKindFromSpec(spec, path)
     const subOptions = uiSubOptions(spec, path)
 
+    const id = `field-${fieldSequence++}`
+    fieldIdsByPath.set(path, id)
     return {
-      id: `field-${fieldSequence++}`,
+      id,
       path,
       jsonPath: `$.${path}`,
       label: typeof schema?.title === 'string' ? schema.title : titleFromSegment(path.split('.').at(-1) ?? path),
       kind,
       span,
       align: field.align === 'end' ? 'end' : 'start',
-      ...(panelId ? { panelId } : {}),
       ...(kind === 'range' && typeof schema?.minimum === 'number' ? { rangeMin: schema.minimum } : {}),
       ...(kind === 'range' && typeof schema?.maximum === 'number' ? { rangeMax: schema.maximum } : {}),
       ...(kind === 'range' && typeof subOptions?.step === 'number' ? { rangeStep: subOptions.step } : {}),
@@ -255,20 +264,27 @@ export function formSpecToBuilderFields(spec: FormSpec): { fields: readonly Buil
     }
   }
 
-  spec.layout.forEach((node, index) => {
-    if (node.type === 'panel') {
-      const panelId = node.id ?? `panel-${index + 1}`
-      panels.push({ id: panelId, title: node.title ?? 'Untitled panel', ...(node.description ? { description: node.description } : {}) })
-      node.children.forEach((field) => fields.push(toBuilderField(field, panelId)))
-      return
-    }
-    fields.push(toBuilderField(node, undefined))
+  spec.layout.forEach((node) => {
+    if (node.type === 'field') fields.push(toBuilderField(node))
   })
 
-  return { fields, panels }
+  const separators = spec.layout.flatMap((node, index): BuilderSeparator[] => {
+    if (node.type !== 'separator') return []
+    const nextField = spec.layout.slice(index + 1).find((next) => next.type === 'field')
+    return [{
+      id: node.id ?? `separator-${index + 1}`,
+      title: node.title,
+      ...(node.description ? { description: node.description } : {}),
+      ...(nextField?.type === 'field' && fieldIdsByPath.has(nextField.path)
+        ? { beforeFieldId: fieldIdsByPath.get(nextField.path)! }
+        : {}),
+    }]
+  })
+
+  return { fields, separators }
 }
 
-export function buildFormSpec(fields: readonly BuilderField[], panels: readonly BuilderPanel[] = [], baseSpec?: FormSpec): FormSpec {
+export function buildFormSpec(fields: readonly BuilderField[], separators: readonly BuilderSeparator[] = [], baseSpec?: FormSpec): FormSpec {
   const schema = structuredClone(baseSpec?.schema ?? {}) as Record<string, unknown>
   const properties = schema.properties && typeof schema.properties === 'object' && !Array.isArray(schema.properties)
     ? schema.properties as Record<string, unknown>
@@ -318,30 +334,21 @@ export function buildFormSpec(fields: readonly BuilderField[], panels: readonly 
     align: field.align,
   })
 
-  const layout: (FormSpec['layout'][number])[] = []
-  let index = 0
-  while (index < fields.length) {
-    const field = fields[index]
-    if (!field) break
-    if (!field.panelId) {
-      layout.push(toFieldNode(field))
-      index += 1
-      continue
-    }
-    const panelFields: BuilderField[] = []
-    while (index < fields.length && fields[index]?.panelId === field.panelId) {
-      panelFields.push(fields[index]!)
-      index += 1
-    }
-    const panel = panels.find((item) => item.id === field.panelId)
-    layout.push({
-      type: 'panel',
-      id: field.panelId,
-      title: panel?.title ?? 'Untitled panel',
-      ...(panel?.description ? { description: panel.description } : {}),
-      children: panelFields.map(toFieldNode),
-    })
-  }
+  const layout: FormSpec['layout'][number][] = []
+  const fieldIds = new Set(fields.map((field) => field.id))
+  const appendSeparator = (separator: BuilderSeparator) => layout.push({
+    type: 'separator',
+    id: separator.id,
+    title: separator.title,
+    ...(separator.description ? { description: separator.description } : {}),
+  })
+  fields.forEach((field) => {
+    separators.filter((separator) => separator.beforeFieldId === field.id).forEach(appendSeparator)
+    layout.push(toFieldNode(field))
+  })
+  separators
+    .filter((separator) => !separator.beforeFieldId || !fieldIds.has(separator.beforeFieldId))
+    .forEach(appendSeparator)
 
   return {
     ...baseSpec,
@@ -352,8 +359,8 @@ export function buildFormSpec(fields: readonly BuilderField[], panels: readonly 
   }
 }
 
-export function formSpecToYaml(fields: readonly BuilderField[], panels: readonly BuilderPanel[] = [], baseSpec?: FormSpec): string {
-  return stringify(buildFormSpec(fields, panels, baseSpec), { lineWidth: 0 })
+export function formSpecToYaml(fields: readonly BuilderField[], separators: readonly BuilderSeparator[] = [], baseSpec?: FormSpec): string {
+  return stringify(buildFormSpec(fields, separators, baseSpec), { lineWidth: 0 })
 }
 
 export function defaultSpan(kind: FieldKind): number {
@@ -365,19 +372,6 @@ export function fieldGridColumn(field: BuilderField): string {
   return field.align === 'end' ? `span ${field.span} / -1` : `span ${field.span}`
 }
 
-/** Groups consecutive fields sharing the same panelId so the canvas can wrap them in one visual frame. */
-export function groupFieldsByPanel(fields: readonly BuilderField[]): readonly { panelId?: string; fields: readonly BuilderField[] }[] {
-  const groups: { panelId?: string; fields: BuilderField[] }[] = []
-  for (const field of fields) {
-    const last = groups.at(-1)
-    if (field.panelId && last?.panelId === field.panelId) {
-      last.fields.push(field)
-    } else {
-      groups.push({ ...(field.panelId ? { panelId: field.panelId } : {}), fields: [field] })
-    }
-  }
-  return groups
-}
 
 export function internalPath(jsonPath: string): string {
   return jsonPath.replace(/^\$\.?/, '')

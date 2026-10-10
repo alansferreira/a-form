@@ -14,7 +14,7 @@
     "plugins/*"
   ],
   "scripts": {
-    "playground": "npm run dev --workspace a-form-playground",
+    "play": "npm run dev --workspace a-form-playground",
     "build": "npm run build --workspaces --if-present",
     "version:bump": "lerna version --conventional-commits --force-publish",
     "test": "vitest run",

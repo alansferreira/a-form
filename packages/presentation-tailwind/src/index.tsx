@@ -1,6 +1,6 @@
 import { getTemplate, getUiOptions } from "@rjsf/utils";
 import type { FieldTemplateProps } from "@rjsf/utils";
-import type { PresentationAdapter } from "a-form-react";
+import type { PresentationAdapter, SeparatorTemplateProps } from "a-form-react";
 
 function FieldTemplate(props: FieldTemplateProps) {
   const options = getUiOptions(props.uiSchema);
@@ -23,10 +23,23 @@ function FieldTemplate(props: FieldTemplateProps) {
   );
 }
 
+function SeparatorTemplate({ id, title, description }: SeparatorTemplateProps) {
+  return (
+    <div className="a-form-tailwind-separator" role="separator" aria-orientation="horizontal" aria-label={title}>
+      <span className="a-form-tailwind-separator-line" aria-hidden="true" />
+      <span className="a-form-tailwind-separator-content">
+        <span className="a-form-tailwind-separator-title" id={`a-form-separator-title-${id}`}>{title}</span>
+        {description && <span className="a-form-tailwind-separator-description">{description}</span>}
+      </span>
+      <span className="a-form-tailwind-separator-line" aria-hidden="true" />
+    </div>
+  );
+}
+
 export const TailwindAdapter: PresentationAdapter = {
   id: "tailwind",
   className: "a-form-tailwind",
-  templates: { FieldTemplate },
+  templates: { FieldTemplate, SeparatorTemplate },
 };
 
 export { FieldTemplate as TailwindFieldTemplate };

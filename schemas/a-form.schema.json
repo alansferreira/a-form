@@ -20,12 +20,12 @@
       "$ref": "#/$defs/uiSchemaNode"
     },
     "layout": {
-      "description": "Responsive form layout: a flat list of 12-column fields, optionally grouped into visual panels. Fields pack left-to-right and wrap automatically.",
+      "description": "Responsive form layout: a flat list of 12-column fields and titled separators. Fields pack left-to-right and wrap automatically.",
       "type": "array",
       "items": {
         "oneOf": [
           { "$ref": "#/$defs/field" },
-          { "$ref": "#/$defs/panel" }
+          { "$ref": "#/$defs/separator" }
         ]
       }
     },
@@ -541,35 +541,24 @@
         }
       }
     },
-    "panel": {
-      "description": "A visual grouping container wrapping one or more fields, rendered with a border and optional title.",
+    "separator": {
+      "description": "A titled horizontal separator between independent fields.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "children"],
+      "required": ["type", "title"],
       "properties": {
         "type": {
-          "const": "panel"
+          "const": "separator"
         },
         "id": {
           "$ref": "#/$defs/nodeId"
         },
         "title": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "description": {
           "type": "string"
-        },
-        "collapsible": {
-          "type": "boolean"
-        },
-        "defaultCollapsed": {
-          "type": "boolean"
-        },
-        "children": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/field"
-          }
         }
       }
     },
