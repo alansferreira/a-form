@@ -1,6 +1,6 @@
 {
   "name": "a-form-async-validation",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "type": "module",
   "repository": {
     "directory": "packages/async-validation",
@@ -21,6 +21,6 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "a-form-core": "^0.4.2"
+    "a-form-core": "^0.5.0"
   }
 }
