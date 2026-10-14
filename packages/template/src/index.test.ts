@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderTemplate, renderUrlTemplate, urlEncode } from "./index.js";
+import { isFieldPathExpression, renderTemplate, renderUrlTemplate, tokenizeInlineTemplate, urlEncode } from "./index.js";
 
 describe("renderTemplate", () => {
   it("resolves dotted paths from the context", () => {
@@ -24,5 +24,29 @@ describe("renderUrlTemplate", () => {
 describe("urlEncode", () => {
   it("encodes special characters", () => {
     expect(urlEncode("a b&c")).toBe("a%20b%26c");
+  });
+});
+
+describe("tokenizeInlineTemplate", () => {
+  it("splits text and placeholders, dropping comments", () => {
+    expect(tokenizeInlineTemplate("Hi {{ customer.name }}{{! note }}, bye {{ ./city }}")).toEqual([
+      { kind: "text", value: "Hi " },
+      { kind: "placeholder", expression: "customer.name", raw: "{{ customer.name }}" },
+      { kind: "text", value: ", bye " },
+      { kind: "placeholder", expression: "./city", raw: "{{ ./city }}" },
+    ]);
+  });
+
+  it("reports sections, triple mustaches and empty placeholders", () => {
+    expect(tokenizeInlineTemplate("{{#items}}{{{html}}}{{ }}").map((token) => token.kind)).toEqual([
+      "invalid",
+      "invalid",
+      "invalid",
+    ]);
+  });
+
+  it("recognizes plain field path expressions", () => {
+    expect(isFieldPathExpression("customer.name")).toBe(true);
+    expect(isFieldPathExpression("id:email")).toBe(false);
   });
 });

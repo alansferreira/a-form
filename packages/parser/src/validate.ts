@@ -5,6 +5,7 @@ import type {
   FormSpec,
   JsonObject,
 } from "a-form-core";
+import { isFieldPathExpression, tokenizeInlineTemplate } from "a-form-template";
 
 const VALID_TRIGGERS = new Set(["change", "blur", "submit", "manual"]);
 
@@ -13,21 +14,39 @@ function addError(diagnostics: Diagnostic[], code: string, message: string, path
 }
 
 function schemaHasPath(schema: JsonObject, fieldPath: string): boolean {
+  return schemaAtPath(schema, fieldPath) !== undefined;
+}
+
+function schemaAtPath(schema: JsonObject, fieldPath: string): unknown {
   let current: unknown = schema;
   for (const segment of fieldPath.split(".")) {
     if (current === null || typeof current !== "object" || Array.isArray(current)) {
-      return false;
+      return undefined;
     }
     const properties = (current as Record<string, unknown>).properties;
     if (properties === null || typeof properties !== "object" || Array.isArray(properties)) {
-      return false;
+      return undefined;
     }
     current = (properties as Record<string, unknown>)[segment];
     if (current === undefined) {
-      return false;
+      return undefined;
     }
   }
-  return true;
+  return current;
+}
+
+function collectRequiredLeafPaths(schema: Record<string, unknown>, prefix = ""): string[] {
+  const properties = schema.properties;
+  if (properties === null || typeof properties !== "object" || Array.isArray(properties)) return [];
+  const required = Array.isArray(schema.required) ? schema.required.filter((name) => typeof name === "string") : [];
+  return required.flatMap((name) => {
+    const child = (properties as Record<string, unknown>)[name];
+    const path = prefix ? `${prefix}.${name}` : name;
+    if (child === null || typeof child !== "object" || Array.isArray(child)) return [path];
+    return (child as Record<string, unknown>).type === "object"
+      ? collectRequiredLeafPaths(child as Record<string, unknown>, path)
+      : [path];
+  });
 }
 
 function validateLayout(spec: FormSpec, diagnostics: Diagnostic[]): void {
@@ -98,6 +117,51 @@ function validateAsyncRule(spec: FormSpec, rule: AsyncValidationRuleSpec, index:
   }
 }
 
+function validateInline(spec: FormSpec, diagnostics: Diagnostic[]): void {
+  if (spec.inline === undefined) return;
+  const template = spec.inline?.template;
+  if (typeof template !== "string" || template.trim().length === 0) {
+    addError(diagnostics, "YF_INLINE_TEMPLATE", "inline.template must be a non-empty string.", ["inline", "template"]);
+    return;
+  }
+  const seen = new Set<string>();
+  const tokens = tokenizeInlineTemplate(template);
+  // Without placeholders the value is treated as a reference (path, id…) that a runtime loader turns into HTML.
+  if (!tokens.some((token) => token.kind !== "text")) return;
+  for (const token of tokens) {
+    if (token.kind === "invalid") {
+      addError(diagnostics, "YF_INLINE_PLACEHOLDER", `Placeholder '${token.raw}': ${token.reason}`, ["inline", "template"]);
+      continue;
+    }
+    if (token.kind !== "placeholder") continue;
+    if (!isFieldPathExpression(token.expression)) {
+      addError(diagnostics, "YF_INLINE_PLACEHOLDER", `Placeholder '${token.raw}' is not a valid field path.`, ["inline", "template"]);
+      continue;
+    }
+    const path = token.expression;
+    if (seen.has(path)) continue;
+    seen.add(path);
+    const fieldSchema = schemaAtPath(spec.schema, path);
+    const fieldType = fieldSchema !== null && typeof fieldSchema === "object"
+      ? (fieldSchema as Record<string, unknown>).type
+      : undefined;
+    if (fieldSchema === undefined) {
+      addError(diagnostics, "YF_INLINE_PATH", `Inline placeholder '${token.raw}' does not exist in schema.`, ["inline", "template"]);
+    } else if (fieldType === "object" || fieldType === "array") {
+      addError(diagnostics, "YF_INLINE_FIELD_TYPE", `Inline placeholder '${token.raw}' must target a scalar field, not ${fieldType}.`, ["inline", "template"]);
+    }
+  }
+  for (const path of collectRequiredLeafPaths(spec.schema)) {
+    if (seen.has(path)) continue;
+    diagnostics.push({
+      code: "YF_INLINE_REQUIRED",
+      message: `Required field '${path}' has no placeholder in inline.template.`,
+      severity: "warning",
+      path: ["inline", "template"],
+    });
+  }
+}
+
 export function validateFormSpec(spec: FormSpec): readonly Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   if (spec.version !== "1") {
@@ -111,6 +175,7 @@ export function validateFormSpec(spec: FormSpec): readonly Diagnostic[] {
     return diagnostics;
   }
   validateLayout(spec, diagnostics);
+  validateInline(spec, diagnostics);
   spec.validations?.async?.forEach((rule, index) => validateAsyncRule(spec, rule, index, diagnostics));
   return diagnostics;
 }

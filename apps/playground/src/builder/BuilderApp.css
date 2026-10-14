@@ -85,6 +85,15 @@
 .builder-form-canvas .a-form-separator-content { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
 .builder-form-canvas .a-form-separator-title { font-weight: 700; }
 .builder-form-canvas .a-form-separator-description { color: #64748b; font-size: 9px; }
+.builder-form-canvas .a-form-inline-field { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+.builder-form-canvas .a-form-inline-read { border: 0; border-bottom: 1px dashed #94a3b8; padding: 0 2px; color: inherit; background: transparent; font: inherit; cursor: text; }
+.builder-form-canvas .a-form-inline-read:hover, .builder-form-canvas .a-form-inline-read:focus-visible { background: #fef3c7; outline: none; }
+.builder-form-canvas .a-form-inline-read-empty { color: #94a3b8; font-style: italic; }
+.builder-form-canvas .a-form-inline-edit { display: inline-flex; align-items: center; gap: 6px; }
+.builder-form-canvas .a-form-inline-actions button { border: 1px solid #cbd5e1; border-radius: 3px; padding: 2px 8px; background: #fff; font-size: 11px; cursor: pointer; }
+.builder-form-canvas .a-form-inline-issue { font-size: 11px; }
+.builder-form-canvas .a-form-inline-issue-error, .builder-form-canvas [data-state="invalid"] .a-form-inline-read { color: #b91c1c; }
+.builder-form-canvas .a-form-inline-issue-warning { color: #b45309; }
 .builder-preview-frame { min-height: 100%; margin: 0 auto; transition: width .2s ease; }
 .builder-preview-mobile { width: min(100%, 340px); }
 .builder-preview-tablet { width: min(100%, 640px); }

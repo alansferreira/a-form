@@ -261,6 +261,54 @@ Target one field through its dotted path:
 }
 ```
 
+## Inline Editor
+
+`AInlineForm` renders an HTML document where each `{{path}}` placeholder is a click-to-edit field. The template comes from `spec.inline.template` or the `template` prop (the prop wins).
+
+```yaml
+inline:
+  template: |
+    <p>Contract with <strong>{{customer.name}}</strong> on the {{plan}} plan.</p>
+```
+
+```tsx
+import { AInlineForm } from "a-form-react";
+
+<AInlineForm
+  spec={normalizeFormSpec(spec)}
+  value={value}
+  onChange={setValue}
+  commitMode="field"
+  onCommit={({ path, value, formData }) => save(path, value)}
+  asyncValidation={{ engine }}
+  presentation={{ registry, adapterId: "tailwind" }}
+/>;
+```
+
+- `commitMode="field"` (default): Enter, blur or the confirm button runs JSON Schema validation for the field plus its async rules; blocking results keep the editor open, otherwise `onChange` and `onCommit` fire. Escape cancels.
+- `commitMode="form"`: confirmed edits update `onChange` only; submit validates the whole schema and async `submit` rules before `onSubmit`.
+- Edit mode renders the field through RJSF with the presentation adapter's widgets/templates; read mode shows enum/oneOf titles, `Yes`/`No`, locale dates and selected `asyncOptions` labels. Override texts with `labels` and dates with `locale`.
+- The template is parsed into React elements, never injected as HTML: only allow-listed tags (`p`, `span`, `div`, `strong`, `em`, headings, lists, tables…) and attributes (`class`, `title`, `role`, `lang`, `dir`, `aria-*`, `data-*`, `colspan`/`rowspan`) survive. Mustache sections, partials and triple mustaches are rejected. Problems are reported through `onDiagnostic` (or `console.warn`).
+
+Styling hooks: `.a-form-inline` (root, plus the adapter class), `.a-form-inline-field`, `.a-form-inline-read`, `.a-form-inline-read-empty`, `.a-form-inline-edit`, `.a-form-inline-actions`, `.a-form-inline-confirm`, `.a-form-inline-cancel`, `.a-form-inline-status`, `.a-form-inline-issue-{error|warning|info}`, `.a-form-inline-errors` and `.a-form-inline-submit`. Each field exposes `data-a-form-inline-field="<path>"` and `data-state="read|edit|pending|invalid"`.
+
+### Template Loader
+
+`template` accepts either the HTML itself or a function that receives `spec.inline.template` (a relative path, an id or any other key) and returns the HTML, synchronously or as a `Promise`.
+
+```yaml
+inline:
+  template: templates/contract.html
+```
+
+```tsx
+const loadTemplate = async (reference: string) => (await fetch(`/forms/${reference}`)).text();
+
+<AInlineForm spec={spec} template={loadTemplate} />;
+```
+
+While the promise is pending the root renders empty with `.a-form-inline-loading` and `aria-busy="true"`; a thrown or rejected loader renders `.a-form-inline-load-error` and reports `YF_INLINE_TEMPLATE_LOAD`. The loader runs again only when `spec.inline.template` changes, not when the function identity changes. The parser treats an `inline.template` without placeholders as a loader reference and skips its placeholder/required-field checks.
+
 ## Runtime Contract
 
 - Pass a normalized spec, not a raw `FormSpec`.

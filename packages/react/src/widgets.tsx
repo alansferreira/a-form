@@ -109,7 +109,11 @@ function AsyncOptionsWidget(props: WidgetProps) {
   const labelKey = typeof options.labelKey === "string" ? options.labelKey : undefined;
   const itemTemplate = typeof options.itemTemplate === "string" ? options.itemTemplate : undefined;
   const debounceMs = typeof options.debounceMs === "number" ? options.debounceMs : 300;
-  const rootFormData = (props.registry.formContext as { rootFormData?: JsonObject } | undefined)?.rootFormData ?? {};
+  const formContext = props.registry.formContext as {
+    rootFormData?: JsonObject;
+    rememberOptionLabel?: (value: JsonValue, label: string) => void;
+  } | undefined;
+  const rootFormData = formContext?.rootFormData ?? {};
 
   const staticOptions = Array.isArray(source)
     ? resolveAsyncOptions(source, { ...(valueKey ? { valueKey } : {}), ...(labelKey ? { labelKey } : {}), ...(itemTemplate ? { itemTemplate } : {}) })
@@ -148,6 +152,7 @@ function AsyncOptionsWidget(props: WidgetProps) {
           const raw = event.target.value;
           setQuery(raw);
           const match = items.find((item) => item.label === raw);
+          if (match) formContext?.rememberOptionLabel?.(match.value, match.label);
           props.onChange(match ? match.value : (raw || undefined));
         }}
       />

@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "a-form-core": "^0.4.2",
+    "a-form-template": "^0.4.2",
     "yaml": "^2.8.1"
   }
 }

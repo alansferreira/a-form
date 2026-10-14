@@ -1,6 +1,5 @@
 import Form from "@rjsf/core";
 import type {
-  ErrorSchema,
   FieldTemplateProps,
   ObjectFieldTemplateProps,
   RJSFSchema,
@@ -16,40 +15,21 @@ import {
 } from "@rjsf/utils";
 import validator from "@rjsf/validator-ajv8";
 import type {
-  AsyncValidationEngine,
-  AsyncValidationIssue,
-  AsyncValidationResult,
-  AsyncValidationStatus,
-} from "a-form-async-validation";
-import type {
-  AsyncValidationRuleSpec,
-  AsyncValidationTrigger,
   ColumnAlign,
   JsonObject,
-  JsonValue,
   NormalizedFieldNode,
   NormalizedFormSpec,
   NormalizedSeparatorNode,
 } from "a-form-core";
 import { renderTemplate } from "a-form-template";
 import type { PresentationConfig, SeparatorTemplateProps } from "./presentation.js";
+import { useAsyncValidation } from "./useAsyncValidation.js";
+import type { AFormAsyncValidationOptions, AsyncFieldState } from "./useAsyncValidation.js";
 import { defaultWidgets } from "./widgets.js";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
 
 export type AFormViewport = "mobile" | "tablet" | "desktop";
-
-export interface AFormAsyncValidationEvent {
-  readonly ruleId: string;
-  readonly fieldPath: string;
-  readonly trigger: AsyncValidationTrigger;
-  readonly result: AsyncValidationResult;
-}
-
-export interface AFormAsyncValidationOptions {
-  readonly engine: AsyncValidationEngine;
-  readonly onResult?: (event: AFormAsyncValidationEvent) => void;
-}
 
 export interface AFormProps {
   readonly spec: NormalizedFormSpec;
@@ -86,41 +66,8 @@ function separatorTitleId(separatorId: string): string {
   return `a-form-separator-title-${separatorId}`;
 }
 
-interface AsyncFieldState {
-  readonly status: AsyncValidationStatus;
-  readonly issues: readonly AsyncValidationIssue[];
-  readonly blocking: boolean;
-}
-
-interface ValidationRecord {
-  readonly fieldPath: string;
-  readonly result: AsyncValidationResult;
-}
-
-function valueAtPath(value: JsonValue, path: string): JsonValue | undefined {
-  let current: JsonValue | undefined = value;
-  for (const segment of path.split(".")) {
-    if (current === null || Array.isArray(current) || typeof current !== "object") return undefined;
-    current = current[segment];
-  }
-  return current;
-}
-
 function fieldPathFromId(id: string): string | undefined {
   return id.startsWith("root.") ? id.slice(5) : undefined;
-}
-
-function appliesToTrigger(rule: AsyncValidationRuleSpec, trigger: AsyncValidationTrigger): boolean {
-  return (rule.triggers ?? ["blur", "submit"]).includes(trigger);
-}
-
-function addError(errorSchema: ErrorSchema, path: string, message: string): void {
-  let current = errorSchema;
-  for (const segment of path.split(".")) {
-    current[segment] ??= {};
-    current = current[segment] as ErrorSchema;
-  }
-  current.__errors = [...(current.__errors ?? []), message];
 }
 
 interface CollectedLayout {
@@ -347,97 +294,14 @@ export function AForm({
     SeparatorTemplate: adapterSeparatorTemplate,
     ...adapterTemplates
   } = presentationAdapter?.templates ?? {};
-  const [records, setRecords] = useState<Readonly<Record<string, ValidationRecord>>>({});
-  const [pending, setPending] = useState<Readonly<Record<string, string>>>({});
   const latestValue = useRef<JsonObject>(value ?? {});
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const requestVersions = useRef(new Map<string, number>());
   latestValue.current = value ?? latestValue.current;
-
-  useEffect(() => () => {
-    timers.current.forEach(clearTimeout);
-    timers.current.clear();
-    asyncValidation?.engine.cancelAll();
-  }, [asyncValidation?.engine]);
-
-  const rules = spec.validations?.async ?? [];
-  const recordKey = (rule: AsyncValidationRuleSpec, fieldPath: string) => `${rule.id}:${fieldPath}`;
-
-  const runRule = async (
-    rule: AsyncValidationRuleSpec,
-    fieldPath: string,
-    trigger: AsyncValidationTrigger,
-    formData: JsonObject,
-  ): Promise<AsyncValidationResult | undefined> => {
-    if (!asyncValidation) return undefined;
-    const key = recordKey(rule, fieldPath);
-    const version = (requestVersions.current.get(key) ?? 0) + 1;
-    requestVersions.current.set(key, version);
-    setPending((current) => ({ ...current, [key]: fieldPath }));
-    setRecords((current) => {
-      const { [key]: removed, ...remaining } = current;
-      void removed;
-      return remaining;
-    });
-
-    const result = await asyncValidation.engine.run({
-      rule,
-      fieldPath,
-      value: valueAtPath(formData, fieldPath),
-      formData,
-      trigger,
-    });
-    if (requestVersions.current.get(key) !== version) return result;
-
-    setPending((current) => {
-      const { [key]: removed, ...remaining } = current;
-      void removed;
-      return remaining;
-    });
-    if (result.status !== "cancelled") {
-      setRecords((current) => ({ ...current, [key]: { fieldPath, result } }));
-      asyncValidation.onResult?.({ ruleId: rule.id, fieldPath, trigger, result });
-    }
-    return result;
-  };
-
-  const scheduleChangeRule = (
-    rule: AsyncValidationRuleSpec,
-    fieldPath: string,
-    formData: JsonObject,
-  ): void => {
-    const key = recordKey(rule, fieldPath);
-    const existing = timers.current.get(key);
-    if (existing) clearTimeout(existing);
-    const debounceMs = rule.debounceMs ?? 0;
-    if (debounceMs === 0) {
-      void runRule(rule, fieldPath, "change", formData);
-      return;
-    }
-    setPending((current) => ({ ...current, [key]: fieldPath }));
-    timers.current.set(key, setTimeout(() => {
-      timers.current.delete(key);
-      void runRule(rule, fieldPath, "change", formData);
-    }, debounceMs));
-  };
+  const { asyncFields, extraErrors, isPending, handleChange, runField, runSubmit } = useAsyncValidation(
+    spec.validations?.async ?? [],
+    asyncValidation,
+  );
 
   const { fieldSpans, fieldAlign, order, separators } = collectFormLayout(spec.layout, viewport);
-  const asyncFields: Record<string, AsyncFieldState> = {};
-  Object.values(records).forEach(({ fieldPath, result }) => {
-    const previous = asyncFields[fieldPath];
-    asyncFields[fieldPath] = {
-      status: result.status,
-      issues: [...(previous?.issues ?? []), ...(result.issues ?? [])],
-      blocking: result.blocking || (previous?.blocking ?? false),
-    };
-  });
-  Object.values(pending).forEach((fieldPath) => {
-    asyncFields[fieldPath] = {
-      status: "pending",
-      issues: asyncFields[fieldPath]?.issues ?? [],
-      blocking: asyncFields[fieldPath]?.blocking ?? false,
-    };
-  });
   const formContext: LayoutFormContext = {
     fieldSpans,
     fieldAlign,
@@ -453,13 +317,6 @@ export function AForm({
       ? { presentationSeparatorTemplate: adapterSeparatorTemplate }
       : {}),
   };
-  const extraErrors: ErrorSchema = {};
-  Object.values(records).forEach(({ fieldPath, result }) => {
-    if (!result.blocking) return;
-    const messages = result.issues?.map(({ message }) => message) ?? ["Async validation failed."];
-    messages.forEach((message) => addError(extraErrors, fieldPath, message));
-  });
-  const isPending = Object.keys(pending).length > 0;
   const SubmitButton = () => (
     <button className="a-form-submit" disabled={isPending} type="submit">
       {submitLabel}
@@ -482,48 +339,19 @@ export function AForm({
       onBlur={(id) => {
         const fieldPath = fieldPathFromId(id);
         if (!fieldPath) return;
-        for (const rule of rules) {
-          if (rule.paths.includes(fieldPath) && appliesToTrigger(rule, "blur")) {
-            const key = recordKey(rule, fieldPath);
-            const timer = timers.current.get(key);
-            if (timer) {
-              clearTimeout(timer);
-              timers.current.delete(key);
-            }
-            void runRule(rule, fieldPath, "blur", latestValue.current);
-          }
-        }
+        void runField(fieldPath, ["blur"], latestValue.current);
       }}
       onChange={({ formData }) => {
         const nextValue = (formData ?? {}) as JsonObject;
         const previousValue = latestValue.current;
         latestValue.current = nextValue;
         onChange?.(nextValue);
-        for (const rule of rules) {
-          if (!appliesToTrigger(rule, "change")) continue;
-          const watchedPaths = [...rule.paths, ...(rule.dependsOn ?? [])];
-          const changed = watchedPaths.some((path) => (
-            valueAtPath(previousValue, path) !== valueAtPath(nextValue, path)
-          ));
-          if (!changed) continue;
-          for (const fieldPath of rule.paths) {
-            scheduleChangeRule(rule, fieldPath, nextValue);
-          }
-        }
+        handleChange(previousValue, nextValue);
       }}
       onSubmit={async ({ formData }, event) => {
         const submittedValue = (formData ?? {}) as JsonObject;
         latestValue.current = submittedValue;
-        timers.current.forEach(clearTimeout);
-        timers.current.clear();
-        setPending({});
-        const results = await Promise.all(rules.filter((rule) => (
-          appliesToTrigger(rule, "submit") || appliesToTrigger(rule, "change")
-        )).flatMap((rule) => {
-          const trigger = appliesToTrigger(rule, "submit") ? "submit" : "change";
-          return rule.paths.map((fieldPath) => runRule(rule, fieldPath, trigger, submittedValue));
-        }));
-        if (results.some((result) => result?.blocking)) return;
+        if (await runSubmit(submittedValue)) return;
         onSubmit?.(submittedValue, event);
       }}
       {...(presentationAdapter?.fields ? { fields: presentationAdapter.fields } : {})}

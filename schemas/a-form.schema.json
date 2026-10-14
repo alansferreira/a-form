@@ -31,6 +31,19 @@
     },
     "validations": {
       "$ref": "#/$defs/validations"
+    },
+    "inline": {
+      "description": "Inline (click-to-edit) document rendering.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["template"],
+      "properties": {
+        "template": {
+          "description": "HTML document; each {{path}} placeholder becomes a click-to-edit field. Only a safe subset of tags/attributes is rendered.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   },
   "$defs": {

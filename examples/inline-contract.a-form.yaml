@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=../schemas/a-form.schema.json
+version: "1"
+schema:
+  title: Service contract
+  type: object
+  required: [customer, plan]
+  properties:
+    customer:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string, title: Customer name, minLength: 2 }
+        email: { type: string, title: Email, format: email }
+        country: { type: string, title: Country }
+    plan:
+      type: string
+      title: Plan
+      oneOf:
+        - { const: free, title: Free }
+        - { const: pro, title: Professional }
+    startDate: { type: string, title: Start date, format: date }
+    autoRenew: { type: boolean, title: Auto renew }
+uiSchema:
+  plan:
+    ui:widget: radio
+  startDate:
+    ui:widget: date
+  customer:
+    country:
+      ui:widget: asyncOptions
+      ui:options:
+        source:
+          - { code: BR, name: Brazil }
+          - { code: PT, name: Portugal }
+        valueKey: code
+        labelKey: name
+layout: []
+inline:
+  template: |
+    <h2>Service contract</h2>
+    <p>
+      This agreement is made with <strong>{{customer.name}}</strong> ({{customer.email}}),
+      based in {{customer.country}}, for the <em>{{plan}}</em> plan.
+    </p>
+    <p>Service starts on {{startDate}}. Automatic renewal: {{autoRenew}}.</p>
+validations:
+  async:
+    - id: email-available
+      adapter: customer-api
+      paths: [customer.email]
+      triggers: [blur, submit]
+      timeoutMs: 5000

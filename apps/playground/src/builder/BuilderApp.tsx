@@ -1,6 +1,6 @@
 import type { FormSpec, JsonObject, NormalizedFormSpec } from 'a-form-core'
 import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'a-form-parser'
-import { AForm } from 'a-form-react'
+import { AForm, AInlineForm } from 'a-form-react'
 import * as yaml from 'yaml';
 
 import { PresentationAdapterRegistry } from 'a-form-react'
@@ -45,7 +45,7 @@ import {
   Type,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useDeferredValue, useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useRef, useState } from 'react'
 import { StructuredEditor } from '../components/StructuredEditor'
 import type { StructuredDocument } from '../components/StructuredEditor'
 import {
@@ -131,14 +131,20 @@ function Preview({
   spec, 
   viewport, 
   theme, 
+  inline,
   onChange 
 }: { 
   spec: NormalizedFormSpec; 
   viewport: Viewport; 
   theme: PreviewTheme, 
+  inline?: boolean,
   onChange?: (value: JsonObject) => void 
 }) {
   const [value, setValue] = useState<JsonObject>({})
+  const handleChange = (value: JsonObject) => {
+    setValue(value)
+    onChange?.(value)
+  }
   return (
     <div className={`builder-preview-frame builder-preview-${viewport}`}>
       <div className="builder-form-canvas">
@@ -147,18 +153,25 @@ function Preview({
           <h2>{spec.schema?.title ? spec.schema?.title as string : 'Untitled form'}</h2>
           <p>Generated from the current virtual grid.</p>
         </div>
+          {inline ? (
+            <AInlineForm
+              key={theme}
+              spec={spec}
+              value={value}
+              onChange={handleChange}
+              presentation={{ registry: presentationRegistry, adapterId: theme }}
+            />
+          ) : (
           <AForm
             key={theme}
             spec={spec}
             viewport={viewport}
             value={value}
-            onChange={(value) => {
-              setValue(value)
-              onChange?.(value)
-            }}
+            onChange={handleChange}
             noHtml5Validate
             presentation={{ registry: presentationRegistry, adapterId: theme }}
           />
+          )}
       </div>
     </div>
   )
@@ -172,12 +185,14 @@ export function BuilderApp() {
   const [baseSpec, setBaseSpec] = useState<FormSpec>()
   const [selectedFieldId, setSelectedFieldId] = useState<string>('field-1')
   const [pathDraft, setPathDraft] = useState('')
+  const [pathDraftSource, setPathDraftSource] = useState<string>()
   const [pendingPayload, setPendingPayload] = useState<PalettePayload>()
   const [view, setView] = useState<BuilderView>('design')
   const [inspectorView, setInspectorView] = useState<InspectorView>('properties')
   const [sourceView, setSourceView] = useState<SourceView>('fields')
   const [viewport, setViewport] = useState<Viewport>('desktop')
   const [previewTheme, setPreviewTheme] = useState<PreviewTheme>('tailwind')
+  const [inlinePreview, setInlinePreview] = useState(false)
   const [notice, setNotice] = useState('Drag a source and drop it anywhere on the canvas; the grid wraps automatically.')
   const [dataCopied, setDataCopied] = useState(false)
   // const [copied, setCopied] = useState(false)
@@ -197,9 +212,11 @@ export function BuilderApp() {
   // }
   const selectedField = fields.find((field) => field.id === selectedFieldId)
   const placedPaths = new Set(fields.map((field) => field.path))
-  useEffect(() => {
+  const pathSource = `${selectedFieldId}|${selectedField?.jsonPath ?? ''}`
+  if (pathDraftSource !== pathSource) {
+    setPathDraftSource(pathSource)
     setPathDraft(selectedField?.jsonPath ?? '')
-  }, [selectedFieldId, selectedField?.jsonPath])
+  }
 
   const selectView = (nextView: BuilderView) => {
     if (nextView === 'code') {
@@ -566,6 +583,12 @@ export function BuilderApp() {
                 <select value={previewTheme} onChange={(event) => setPreviewTheme(event.target.value as PreviewTheme)}>
                   {previewThemes.map((theme) => <option value={theme.id} key={theme.id}>{theme.label}</option>)}
                 </select>
+                {normalized.inline && (
+                  <select value={inlinePreview ? 'inline' : 'grid'} onChange={(event) => setInlinePreview(event.target.value === 'inline')}>
+                    <option value="grid">Grid</option>
+                    <option value="inline">Inline</option>
+                  </select>
+                )}
               </label>
             )}
           </div>
@@ -629,7 +652,7 @@ export function BuilderApp() {
               />
             </div>
           ) : (
-            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} onChange={
+            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} inline={inlinePreview && Boolean(normalized.inline)} onChange={
               (value) => {
                 console.log('Preview value changed:');
                 console.log(value);

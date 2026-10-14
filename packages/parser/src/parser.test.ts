@@ -104,6 +104,40 @@ describe("YAML form specs", () => {
     const diagnostics = validateFormSpec(parseYamlSpec(panelSource).value!);
     expect(diagnostics.map(({ code }) => code)).toContain("YF_FIELD_DUPLICATE");
   });
+
+  it("validates inline template placeholders against the schema", () => {
+    const parsed = parseYamlSpec(`${validSource}
+inline:
+  template: "<p>{{person.name}} {{person.missing}} {{person}} {{#loop}}</p>"
+`);
+    expect(parsed.value?.inline?.template).toContain("{{person.name}}");
+
+    const codes = validateFormSpec(parsed.value!).map(({ code }) => code);
+    expect(codes).toEqual(expect.arrayContaining(["YF_INLINE_PATH", "YF_INLINE_FIELD_TYPE", "YF_INLINE_PLACEHOLDER"]));
+  });
+
+  it("treats a template without placeholders as a loader reference and rejects non-path expressions", () => {
+    const source = validSource.replace("      type: object\n      properties:", "      type: object\n      required: [email]\n      properties:");
+    const parsed = parseYamlSpec(source);
+
+    expect(validateFormSpec({ ...parsed.value!, inline: { template: "templates/contract.html" } })).toEqual([]);
+    expect(validateFormSpec({ ...parsed.value!, inline: { template: "{{person.email}} {{id:email}}" } }).map(({ code }) => code))
+      .toEqual(["YF_INLINE_PLACEHOLDER"]);
+  });
+
+  it("warns when a required field has no inline placeholder", () => {
+    const source = validSource
+      .replace("  type: object\n  properties:", "  type: object\n  required: [person]\n  properties:")
+      .replace("      type: object\n      properties:", "      type: object\n      required: [email]\n      properties:");
+    const parsed = parseYamlSpec(`${source}
+inline:
+  template: "<p>{{person.name}}</p>"
+`);
+
+    const diagnostics = validateFormSpec(parsed.value!);
+    expect(diagnostics).toMatchObject([{ code: "YF_INLINE_REQUIRED", severity: "warning" }]);
+    expect(diagnostics[0]?.message).toContain("person.email");
+  });
 });
 
 describe("Emmet layouts", () => {

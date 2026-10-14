@@ -70,11 +70,17 @@ export interface AsyncValidationRuleSpec {
   readonly failurePolicy?: AsyncValidationFailurePolicy;
 }
 
+export interface InlineSpec {
+  /** HTML document whose `{{path}}` placeholders render as click-to-edit fields. */
+  readonly template: string;
+}
+
 export interface FormSpec {
   readonly version: "1";
   readonly schema: JsonObject;
   readonly uiSchema?: JsonObject;
   readonly layout: readonly LayoutNode[];
+  readonly inline?: InlineSpec;
   readonly validations?: {
     readonly async?: readonly AsyncValidationRuleSpec[];
   };
