@@ -227,6 +227,11 @@ The editor schema validates the AForm document structure. Cross-references such 
 
 The layout is a flat list of 12-column fields that pack left-to-right and wrap automatically. Choose which normalized span should be rendered through the `viewport` prop:
 
+Set `viewport="auto"` to follow the form's available content width using
+`ResizeObserver`: mobile below 768px, tablet from 768px, and desktop from 1024px.
+Auto starts with mobile spans before the first measurement, including server
+rendering. Explicit modes and the desktop default remain unchanged.
+
 ```tsx
 import type { NormalizedFormSpec } from "a-form-core";
 import type { AFormViewport } from "a-form-react";
@@ -242,6 +247,7 @@ export function ResponsivePreview({ spec }: { spec: NormalizedFormSpec }) {
         value={viewport}
         onChange={(event) => setViewport(event.target.value as AFormViewport)}
       >
+        <option value="auto">Auto</option>
         <option value="mobile">Mobile</option>
         <option value="tablet">Tablet</option>
         <option value="desktop">Desktop</option>
@@ -347,7 +353,7 @@ Available hooks include:
 | Prop | Type | Default | Purpose |
 | --- | --- | --- | --- |
 | `spec` | `NormalizedFormSpec` | Required | Normalized schema, UI schema, and layout contract |
-| `viewport` | `"mobile" \| "tablet" \| "desktop"` | `"desktop"` | Selects the responsive span for every column |
+| `viewport` | `"auto" \| "mobile" \| "tablet" \| "desktop"` | `"desktop"` | Selects the responsive span; auto follows form width |
 | `value` | `JsonObject` | `{}` | Controlled form data |
 | `onChange` | `(value: JsonObject) => void` | - | Receives the next complete form value |
 | `onSubmit` | `(value, event) => void` | - | Receives validated form data and the form event |

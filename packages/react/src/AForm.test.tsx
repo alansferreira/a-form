@@ -11,6 +11,7 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AForm } from "./AForm.js";
+import type { AFormViewport } from "./AForm.js";
 import { PresentationAdapterRegistry } from "./presentation.js";
 
 const actEnvironment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean };
@@ -44,10 +45,72 @@ const mountedRoots: ReturnType<typeof createRoot>[] = [];
 afterEach(() => {
   mountedRoots.forEach((root) => act(() => root.unmount()));
   mountedRoots.length = 0;
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe("AForm", () => {
+  it.each([
+    ["mobile", 12],
+    ["tablet", 6],
+    ["desktop", 4],
+    ["auto", 12],
+    [undefined, 4],
+  ] as const)("renders %s spans without browser measurements", (viewport, span) => {
+    const html = renderToStaticMarkup(
+      <AForm spec={spec} {...(viewport ? { viewport } : {})} />,
+    );
+    expect(html).toContain(`grid-column:span ${span}`);
+  });
+
+  it("responds to form width in auto mode and disconnects in manual mode", () => {
+    let resize: (width: number) => void = () => {
+      throw new Error("ResizeObserver has not been created.");
+    };
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    const observerConstructor = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: (entries: { contentRect: { width: number } }[]) => void) {
+        observerConstructor();
+        resize = (width) => callback([{ contentRect: { width } }]);
+      }
+      observe = observe;
+      disconnect = disconnect;
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    const render = (viewport: AFormViewport) => act(() => {
+      root.render(<AForm spec={spec} viewport={viewport} value={{ name: "Ana" }} />);
+    });
+    const field = () => container.querySelector<HTMLElement>('[data-a-form-field="name"]');
+    render("auto");
+    expect(observe).toHaveBeenCalledWith(container.querySelector("form"));
+
+    for (const [width, span] of [[0, 12], [767, 12], [768, 6], [1023, 6], [1024, 4], [1400, 4], [500, 12]] as const) {
+      act(() => resize(width));
+      expect(field()?.style.gridColumn).toBe(`span ${span}`);
+      expect(container.querySelector<HTMLInputElement>('input[name="root.name"]')?.value).toBe("Ana");
+    }
+    expect(observerConstructor).toHaveBeenCalledTimes(1);
+
+    for (const [viewport, span] of [["desktop", 4], ["tablet", 6], ["mobile", 12]] as const) {
+      render(viewport);
+      expect(field()?.style.gridColumn).toBe(`span ${span}`);
+    }
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(observerConstructor).toHaveBeenCalledTimes(1);
+
+    render("auto");
+    act(() => resize(1024));
+    expect(field()?.style.gridColumn).toBe("span 4");
+    expect(observerConstructor).toHaveBeenCalledTimes(2);
+    act(() => root.unmount());
+    mountedRoots.pop();
+    expect(disconnect).toHaveBeenCalledTimes(2);
+  });
+
   it("renders only layout fields with the selected span and AForm order", () => {
     const html = renderToStaticMarkup(<AForm spec={spec} viewport="desktop" />);
 

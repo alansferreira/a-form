@@ -77,7 +77,7 @@ export function FormFromYaml({ source }: { source: string }) {
 | Prop | Type | Default | Purpose |
 | --- | --- | --- | --- |
 | `spec` | `NormalizedFormSpec` | Required | Schema, UI Schema, and normalized layout |
-| `viewport` | `"mobile" \| "tablet" \| "desktop"` | `"desktop"` | Chooses each column's active span |
+| `viewport` | `"auto" \| "mobile" \| "tablet" \| "desktop"` | `"desktop"` | Chooses each column's active span; auto follows form width |
 | `value` | `JsonObject` | `{}` | Controlled form value |
 | `onChange` | `(value: JsonObject) => void` | - | Receives the next complete form value |
 | `onSubmit` | `(value, event) => void` | - | Receives validated data and the form event |
@@ -203,6 +203,13 @@ interface AFormAsyncValidationEvent {
 ```
 
 ## Responsive Preview
+
+Use `<AForm spec={spec} viewport="auto" />` for responsive layout based on the
+form's available content width, not the browser window. A `ResizeObserver`
+updates spans when the container resizes: mobile below 768px, tablet from
+768px to below 1024px, and desktop from 1024px. Auto uses mobile spans during
+server rendering and until the first measurement. Browsers must support
+`ResizeObserver`. The default remains desktop; explicit modes stay fixed.
 
 ```tsx
 import type { AFormViewport } from "a-form-react";

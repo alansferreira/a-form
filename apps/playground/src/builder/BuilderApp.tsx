@@ -1,6 +1,7 @@
 import type { FormSpec, JsonObject, NormalizedFormSpec } from 'a-form-core'
 import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'a-form-parser'
 import { AForm, AInlineForm } from 'a-form-react'
+import type { AFormViewport } from 'a-form-react'
 import * as yaml from 'yaml';
 
 import { PresentationAdapterRegistry } from 'a-form-react'
@@ -23,6 +24,7 @@ import {
   Database,
   Download,
   Eye,
+  Maximize,
   GripVertical,
   Github,
   Hash,
@@ -89,7 +91,7 @@ type BuilderView = 'design' | 'code' | 'preview'
 type InspectorView = 'properties' | 'spec'
 type SourceView = 'data' | 'fields'
 type PreviewTheme = 'tailwind' | 'bootstrap' | 'material'
-type Viewport = 'mobile' | 'tablet' | 'desktop'
+type Viewport = AFormViewport
 const kindIcons: Record<FieldKind, LucideIcon> = {
   text: Type,
   email: Mail,
@@ -107,6 +109,7 @@ const kindIcons: Record<FieldKind, LucideIcon> = {
 }
 
 const viewports: readonly { id: Viewport; label: string; icon: LucideIcon }[] = [
+  { id: 'auto', label: 'Auto', icon: Maximize },
   { id: 'mobile', label: 'Mobile', icon: Smartphone },
   { id: 'tablet', label: 'Tablet', icon: Tablet },
   { id: 'desktop', label: 'Desktop', icon: Monitor },
@@ -494,7 +497,7 @@ export function BuilderApp() {
         <span className="builder-notice">{pendingPayload ? `${pendingPayload.label} selected - click a grid slot` : notice}</span>
         <div className="builder-viewport-control" aria-label="Preview viewport">
           {viewports.map(({ id, label, icon: Icon }) => (
-            <button className={viewport === id ? 'active' : ''} type="button" key={id} onClick={() => setViewport(id)} title={label} aria-label={label}><Icon size={15} /></button>
+            <button className={viewport === id ? 'active' : ''} type="button" key={id} onClick={() => setViewport(id)} title={label} aria-label={label} aria-pressed={viewport === id}><Icon size={15} /></button>
           ))}
         </div>
         <span className="builder-viewport-label"><Laptop size={14} /> {viewport}</span>

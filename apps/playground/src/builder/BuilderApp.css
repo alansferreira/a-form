@@ -97,7 +97,7 @@
 .builder-preview-frame { min-height: 100%; margin: 0 auto; transition: width .2s ease; }
 .builder-preview-mobile { width: min(100%, 340px); }
 .builder-preview-tablet { width: min(100%, 640px); }
-.builder-preview-desktop { width: 100%; }
+.builder-preview-auto, .builder-preview-desktop { width: 100%; }
 .builder-form-canvas { min-height: 100%; box-sizing: border-box; padding: clamp(24px, 5vw, 52px); border: 1px solid #c9cdc6; background: #fbfaf6; box-shadow: 0 18px 45px rgba(38, 44, 39, .12); }
 .builder-form-heading { margin-bottom: 24px; padding-bottom: 22px; border-bottom: 2px solid var(--ink); }
 .builder-form-heading span { color: var(--rust); font: 700 9px var(--mono); }

@@ -26,10 +26,11 @@ import type { PresentationConfig, SeparatorTemplateProps } from "./presentation.
 import { useAsyncValidation } from "./useAsyncValidation.js";
 import type { AFormAsyncValidationOptions, AsyncFieldState } from "./useAsyncValidation.js";
 import { defaultWidgets } from "./widgets.js";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
 
-export type AFormViewport = "mobile" | "tablet" | "desktop";
+export type AFormViewport = "auto" | "mobile" | "tablet" | "desktop";
+type ResolvedViewport = Exclude<AFormViewport, "auto">;
 
 export interface AFormProps {
   readonly spec: NormalizedFormSpec;
@@ -77,12 +78,12 @@ interface CollectedLayout {
   readonly separators: SeparatorPlacement[];
 }
 
-function spanForViewport(field: NormalizedFieldNode, viewport: AFormViewport): number {
+function spanForViewport(field: NormalizedFieldNode, viewport: ResolvedViewport): number {
   return field.span[viewport];
 }
 
 /** Assigns each field and separator its serialized flow order; CSS grid handles responsive wrapping. */
-function collectFormLayout(layout: NormalizedFormSpec["layout"], viewport: AFormViewport): CollectedLayout {
+function collectFormLayout(layout: NormalizedFormSpec["layout"], viewport: ResolvedViewport): CollectedLayout {
   const fieldSpans: Record<string, number> = {};
   const fieldAlign: Record<string, ColumnAlign> = {};
   const order: Record<string, number> = {};
@@ -285,6 +286,22 @@ export function AForm({
   onChange,
   onSubmit,
 }: AFormProps) {
+  const formRef = useRef<Form>(null);
+  const [autoViewport, setAutoViewport] = useState<ResolvedViewport>("mobile");
+  useEffect(() => {
+    if (viewport !== "auto") return;
+    const element: unknown = formRef.current?.formElement.current;
+    if (!(element instanceof HTMLElement)) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const width = entry.contentRect.width;
+      setAutoViewport(width >= 1024 ? "desktop" : width >= 768 ? "tablet" : "mobile");
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [viewport]);
+
   const presentationAdapter = presentation?.registry.get(presentation.adapterId);
   if (presentation && !presentationAdapter) {
     throw new Error(`Presentation adapter '${presentation.adapterId}' is not registered.`);
@@ -301,7 +318,10 @@ export function AForm({
     asyncValidation,
   );
 
-  const { fieldSpans, fieldAlign, order, separators } = collectFormLayout(spec.layout, viewport);
+  const { fieldSpans, fieldAlign, order, separators } = collectFormLayout(
+    spec.layout,
+    viewport === "auto" ? autoViewport : viewport,
+  );
   const formContext: LayoutFormContext = {
     fieldSpans,
     fieldAlign,
@@ -325,6 +345,7 @@ export function AForm({
 
   return (
     <Form
+      ref={formRef}
       className={[className, presentationAdapter?.className].filter(Boolean).join(" ")}
       schema={spec.schema as RJSFSchema}
       uiSchema={(spec.uiSchema ?? {}) as UiSchema}
