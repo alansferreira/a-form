@@ -12,13 +12,18 @@ export interface StructuredDocument {
   readonly format: StructuredFormat
 }
 
+export interface StructuredImportOptions {
+  readonly generateRelated: boolean
+}
+
 interface StructuredEditorProps extends Omit<ComponentProps<typeof Editor>, 'language' | 'onChange' | 'path' | 'value'> {
   readonly document: StructuredDocument
   readonly label: string
   readonly path: string
   readonly toolbarActions?: ReactNode
   readonly onChange: (document: StructuredDocument) => void
-  readonly onImport?: (document: StructuredDocument) => boolean | void
+  readonly onImport?: (document: StructuredDocument, options: StructuredImportOptions) => boolean | void
+  readonly importOption?: { readonly label: string; readonly description: string }
 }
 
 function formatFromFile(file: File): StructuredFormat | undefined {
@@ -28,9 +33,11 @@ function formatFromFile(file: File): StructuredFormat | undefined {
   return undefined
 }
 
-export function StructuredEditor({ document, label, path, toolbarActions, onChange, onImport = onChange, ...editorProps }: StructuredEditorProps) {
+export function StructuredEditor({ document, label, path, toolbarActions, onChange, onImport = onChange, importOption, ...editorProps }: StructuredEditorProps) {
   const [importOpen, setImportOpen] = useState(false)
   const [draft, setDraft] = useState<StructuredDocument>(document)
+  const [generateRelated, setGenerateRelated] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const titleId = useId()
   const pathStem = path.replace(/\.(json|ya?ml)$/i, '')
@@ -39,6 +46,8 @@ export function StructuredEditor({ document, label, path, toolbarActions, onChan
 
   const openImport = () => {
     setDraft(document)
+    setGenerateRelated(false)
+    setImportError(null)
     setImportOpen(true)
   }
 
@@ -50,11 +59,21 @@ export function StructuredEditor({ document, label, path, toolbarActions, onChan
     const file = event.currentTarget.files?.[0]
     event.currentTarget.value = ''
     if (!file) return
-    setDraft({ source: await file.text(), format: formatFromFile(file) ?? draft.format })
+    try {
+      setDraft({ source: await file.text(), format: formatFromFile(file) ?? draft.format })
+      setImportError(null)
+    } catch (error) {
+      setImportError(`Could not read the file: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   const applyImport = () => {
-    if (onImport(draft) !== false) setImportOpen(false)
+    try {
+      if (onImport(draft, { generateRelated: importOption !== undefined && generateRelated }) !== false) setImportOpen(false)
+      else setImportError('The document could not be imported.')
+    } catch (error) {
+      setImportError(`Could not import: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   return (
@@ -105,11 +124,18 @@ export function StructuredEditor({ document, label, path, toolbarActions, onChan
                   path={importPath}
                   theme={editorProps.theme}
                   value={draft.source}
-                  onChange={(value) => setDraft({ ...draft, source: value ?? '' })}
+                  onChange={(value) => { setDraft({ ...draft, source: value ?? '' }); setImportError(null) }}
                   options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }}
                 />
               </div>
             </div>
+            {importOption && (
+              <div className="structured-editor-import-option">
+                <label><input type="checkbox" checked={generateRelated} aria-describedby={`${titleId}-option`} onChange={(event) => setGenerateRelated(event.target.checked)} /> {importOption.label}</label>
+                <p id={`${titleId}-option`}>{importOption.description}</p>
+              </div>
+            )}
+            {importError && <p className="structured-editor-import-error" role="alert">{importError}</p>}
             <footer>
               <span>{draft.format.toUpperCase()} document</span>
               <div><button type="button" onClick={() => setImportOpen(false)}>Cancel</button><button className="primary" type="button" onClick={applyImport}><Upload size={15} /> Import</button></div>

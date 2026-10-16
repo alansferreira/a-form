@@ -172,6 +172,21 @@ const CustomAdapter: PresentationAdapter = {
 };
 ```
 
+## Array controls
+
+Arrays reuse the adapter's RJSF array templates and Add/Remove/Move buttons.
+Material and Bootstrap keep their framework-native controls. The base,
+Tailwind, and Neobrutalism renderers provide visible text buttons instead of
+depending on the default RJSF icon font.
+
+Override `ArrayFieldTemplate`, `ArrayFieldItemTemplate`, or
+`ArrayFieldItemButtonsTemplate` under `templates`, and individual actions under
+`templates.ButtonTemplates`. Custom array fields under `fields.ArrayField` are
+also supported; AForm forwards their changes with the array's field ID so
+structural edits are tracked. Preserve RJSF's `canAdd`, `hasRemove`,
+`hasMoveUp`, `hasMoveDown`, `disabled`, and `readonly` flags when customizing
+controls. At `minItems`, AForm turns off removal in the effective array UI options.
+
 ## Implement a custom widget
 
 Use the RJSF `WidgetProps` contract for value, events and disabled/read-only

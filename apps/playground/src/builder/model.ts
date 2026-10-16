@@ -4,6 +4,7 @@ import { parse, stringify } from 'yaml'
 export type FieldKind =
   | 'text' | 'email' | 'number' | 'textarea' | 'checkbox' | 'radio' | 'select'
   | 'date' | 'time' | 'datetime' | 'range' | 'autocomplete' | 'asyncOptions'
+  | 'array' | 'object'
 
 export interface DataPathNode {
   readonly jsonPath: string
@@ -29,6 +30,9 @@ export interface BuilderField {
   readonly optionsValueKey?: string
   readonly optionsLabelKey?: string
   readonly optionsItemTemplate?: string
+  readonly arrayAddable?: boolean
+  readonly arrayRemovable?: boolean
+  readonly arrayOrderable?: boolean
 }
 
 export interface BuilderSeparator {
@@ -70,6 +74,8 @@ export const FIELD_KINDS: readonly { kind: FieldKind; label: string; span: numbe
   { kind: 'range', label: 'Range slider', span: 6 },
   { kind: 'autocomplete', label: 'Autocomplete', span: 6 },
   { kind: 'asyncOptions', label: 'Async options', span: 6 },
+  { kind: 'array', label: 'Array', span: 12 },
+  { kind: 'object', label: 'Object', span: 12 },
 ]
 
 function titleFromSegment(segment: string): string {
@@ -79,8 +85,9 @@ function titleFromSegment(segment: string): string {
     .replace(/^./, (letter) => letter.toUpperCase())
 }
 
-function isJsonValue(value: unknown): value is JsonValue {
-  if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return true
+export function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return true
+  if (typeof value === 'number') return Number.isFinite(value)
   if (Array.isArray(value)) return value.every(isJsonValue)
   return typeof value === 'object' && Object.values(value).every(isJsonValue)
 }
@@ -101,7 +108,7 @@ export function listDataPaths(value: JsonObject): readonly DataPathNode[] {
   const nodes: DataPathNode[] = []
 
   const visit = (current: JsonValue, segments: readonly string[], depth: number): void => {
-    const branch = current !== null && typeof current === 'object'
+    const branch = current !== null && typeof current === 'object' && !Array.isArray(current)
     nodes.push({
       jsonPath: `$.${segments.join('.')}`,
       label: titleFromSegment(segments.at(-1) ?? ''),
@@ -119,14 +126,66 @@ export function listDataPaths(value: JsonObject): readonly DataPathNode[] {
 }
 
 export function inferFieldKind(path: string, value: JsonValue | undefined): FieldKind {
+  if (Array.isArray(value)) return 'array'
+  if (value !== null && typeof value === 'object') return 'object'
   if (typeof value === 'boolean') return 'checkbox'
   if (typeof value === 'number') return 'number'
   if (/email/i.test(path)) return 'email'
   return 'text'
 }
 
-function schemaForField(field: BuilderField, existing: JsonObject | undefined): Record<string, unknown> {
+export function schemaFromSamples(samples: readonly JsonValue[]): JsonObject {
+  if (samples.length === 0) return { type: 'string' }
+  const typeOf = (value: JsonValue) => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+  const types = [...new Set(samples.map(typeOf))]
+  if (types.length > 1) {
+    return { anyOf: types.map((type) => schemaFromSamples(samples.filter((sample) => typeOf(sample) === type))) }
+  }
+  const type = types[0] ?? 'string'
+  if (type === 'array') {
+    return { type: 'array', items: schemaFromSamples(samples.flatMap((sample) => Array.isArray(sample) ? sample : [])) }
+  }
+  if (type === 'object') {
+    const objects = samples.filter((sample): sample is JsonObject => sample !== null && typeof sample === 'object' && !Array.isArray(sample))
+    const keys = [...new Set(objects.flatMap(Object.keys))]
+    return {
+      type: 'object',
+      properties: Object.fromEntries(keys.map((key) => [
+        key,
+        { ...schemaFromSamples(objects.flatMap((object) => object[key] === undefined ? [] : [object[key]])), title: titleFromSegment(key) },
+      ])),
+    }
+  }
+  return { type }
+}
+
+function schemaForField(field: BuilderField, existing: JsonObject | undefined, preserveExisting: boolean): Record<string, unknown> {
   const schema: Record<string, unknown> = { ...existing }
+  if (preserveExisting && existing && field.kind !== 'array' && field.kind !== 'object') {
+    return {
+      ...schema,
+      title: field.label,
+      ...(field.kind === 'range' ? {
+        ...(field.rangeMin !== undefined ? { minimum: field.rangeMin } : {}),
+        ...(field.rangeMax !== undefined ? { maximum: field.rangeMax } : {}),
+      } : {}),
+    }
+  }
+  if ((field.kind === 'array' || field.kind === 'object') && schema.type !== field.kind) {
+    for (const key of Object.keys(schema)) {
+      if (!['title', 'description', 'readOnly', 'writeOnly', 'deprecated', '$comment'].includes(key)) delete schema[key]
+    }
+  }
+  if (field.kind === 'array') {
+    const inferred = schemaFromSamples(Array.isArray(field.sampleValue) ? field.sampleValue : [])
+    return { ...schema, type: 'array', title: field.label, items: schema.items ?? inferred }
+  }
+  if (field.kind === 'object') {
+    const inferred = field.sampleValue !== null && typeof field.sampleValue === 'object' && !Array.isArray(field.sampleValue)
+      ? schemaFromSamples([field.sampleValue])
+      : { properties: {} }
+    return { ...inferred, ...schema, type: 'object', title: field.label }
+  }
   delete schema.format
   delete schema.enum
   delete schema.minimum
@@ -161,10 +220,7 @@ function setNested(target: Record<string, unknown>, path: string, value: Record<
   let properties = target
   segments.forEach((segment, index) => {
     if (index === segments.length - 1) {
-      const existing = properties[segment]
-      properties[segment] = existing && typeof existing === 'object' && !Array.isArray(existing)
-        ? { ...existing, ...value }
-        : value
+      properties[segment] = value
       return
     }
     const existing = properties[segment]
@@ -215,6 +271,8 @@ function fieldKindFromSpec(spec: FormSpec, path: string): FieldKind {
   if (widget === 'textarea' || widget === 'checkbox' || widget === 'radio') return widget
   if (widget === 'date' || widget === 'time' || widget === 'datetime' || widget === 'range' || widget === 'autocomplete' || widget === 'asyncOptions') return widget
   if (schema?.type === 'boolean') return 'checkbox'
+  if (schema?.type === 'array') return 'array'
+  if (schema?.type === 'object') return 'object'
   if (schema?.type === 'number' || schema?.type === 'integer') return 'number'
   if (Array.isArray(schema?.enum)) return 'select'
   if (schema?.format === 'email') return 'email'
@@ -254,6 +312,11 @@ export function formSpecToBuilderFields(spec: FormSpec): { fields: readonly Buil
       kind,
       span,
       align: field.align === 'end' ? 'end' : 'start',
+      ...(kind === 'array' ? {
+        arrayAddable: subOptions?.addable !== false,
+        arrayRemovable: subOptions?.removable !== false,
+        arrayOrderable: subOptions?.orderable !== false,
+      } : {}),
       ...(kind === 'range' && typeof schema?.minimum === 'number' ? { rangeMin: schema.minimum } : {}),
       ...(kind === 'range' && typeof schema?.maximum === 'number' ? { rangeMax: schema.maximum } : {}),
       ...(kind === 'range' && typeof subOptions?.step === 'number' ? { rangeStep: subOptions.step } : {}),
@@ -293,14 +356,24 @@ export function buildFormSpec(fields: readonly BuilderField[], separators: reado
   const uiSchema = structuredClone(baseSpec?.uiSchema ?? {}) as Record<string, unknown>
 
   fields.forEach((field) => {
-    setNested(properties, field.path, schemaForField(field, schemaAtPath(schema as JsonObject, field.path)))
+    const preserveExisting = baseSpec !== undefined && field.kind === fieldKindFromSpec(baseSpec, field.path)
+    setNested(properties, field.path, schemaForField(field, schemaAtPath(schema as JsonObject, field.path), preserveExisting))
     const currentUi = valueAtPath(uiSchema as JsonObject, field.path)
     const uiOptions: Record<string, unknown> = currentUi && typeof currentUi === 'object' && !Array.isArray(currentUi)
       ? { ...currentUi }
       : {}
     delete uiOptions['ui:widget']
     delete uiOptions['ui:autocomplete']
-    delete uiOptions['ui:options']
+    if (field.kind !== 'array' && field.kind !== 'object') delete uiOptions['ui:options']
+    if (field.kind === 'array') {
+      const options = uiOptions['ui:options']
+      uiOptions['ui:options'] = {
+        ...(options && typeof options === 'object' && !Array.isArray(options) ? options : {}),
+        addable: field.arrayAddable ?? true,
+        removable: field.arrayRemovable ?? true,
+        orderable: field.arrayOrderable ?? true,
+      }
+    }
     if (field.kind === 'textarea') uiOptions['ui:widget'] = 'textarea'
     if (field.kind === 'checkbox') uiOptions['ui:widget'] = 'checkbox'
     if (field.kind === 'radio') uiOptions['ui:widget'] = 'radio'

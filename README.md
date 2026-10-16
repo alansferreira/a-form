@@ -208,6 +208,24 @@ See [examples/registration.a-form.yaml](examples/registration.a-form.yaml) for a
 
 For right-aligned columns, titled separators, date/time/range/autocomplete/async-options fields, and templated help text (`ui:helpTemplate`), see the [layout & fields cookbook](docs/layout-and-fields-cookbook.md) and [examples/feature-showcase.a-form.yaml](examples/feature-showcase.a-form.yaml).
 
+For a nested production Helm values document, see
+[the production values spec](examples/helm-values-production.a-form.yaml) and
+[its sanitized companion data](examples/helm-values-production.values.yaml).
+The spec covers resource quantities, CronJob settings, environment variables
+with Secret references, External Secrets, and deployment metadata. It defines
+an example production policy, not the full Kubernetes schema. Secret-name
+rules cannot detect credentials under arbitrary variable names. Semantic cron
+validation, request/limit comparisons, and verifying that referenced Secrets
+exist require host-side checks. `readOnly` only controls editing; it does not
+enforce immutability. YAML comments are not part of form data or preserved by
+JSON Schema validation.
+
+Arrays have Add, Remove, Move up, and Move down controls in the normal form,
+including arrays of objects and nested arrays. Studio preserves array item
+schemas on import and exposes operation switches in the inspector. See the
+[array controls guide](packages/react/README.md#arrays) for `ui:options` and
+item-count limits.
+
 ## Editor Schema
 
 The Draft 2020-12 schema at [schemas/a-form.schema.json](schemas/a-form.schema.json) provides completion, documentation, and structural validation for AForm YAML files in editors compatible with YAML Language Server.

@@ -1,8 +1,7 @@
-import type { FormSpec, JsonObject, NormalizedFormSpec } from 'a-form-core'
-import { normalizeFormSpec, parseYamlSpec, validateFormSpec } from 'a-form-parser'
+import type { JsonObject, NormalizedFormSpec } from 'a-form-core'
+import { normalizeFormSpec } from 'a-form-parser'
 import { AForm, AInlineForm } from 'a-form-react'
 import type { AFormViewport } from 'a-form-react'
-import * as yaml from 'yaml';
 
 import { PresentationAdapterRegistry } from 'a-form-react'
 import { BootstrapAdapter } from 'a-form-presentation-bootstrap'
@@ -37,6 +36,7 @@ import {
   Plus,
   Search,
   Rows3,
+  Redo2,
   SeparatorHorizontal,
   Settings2,
   SlidersHorizontal,
@@ -45,9 +45,10 @@ import {
   Tablet,
   Trash2,
   Type,
+  Undo2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useDeferredValue, useRef, useState } from 'react'
+import { useDeferredValue, useState } from 'react'
 import { StructuredEditor } from '../components/StructuredEditor'
 import type { StructuredDocument } from '../components/StructuredEditor'
 import {
@@ -55,7 +56,6 @@ import {
   defaultSpan,
   FIELD_KINDS,
   fieldGridColumn,
-  formSpecToBuilderFields,
   formSpecToYaml,
   inferFieldKind,
   internalPath,
@@ -65,6 +65,10 @@ import {
 import type { BuilderDragPayload, BuilderField, BuilderSeparator, FieldKind, PalettePayload } from './model'
 import { TouchDragOverlay } from './TouchDragOverlay'
 import { useTouchDrag } from './useTouchDrag'
+import { useBuilderProject } from './useBuilderProject'
+import type { BuilderProject } from './project'
+import { dataImportChanges, specImportChanges } from './importGeneration'
+import type { ImportedSpec } from './importGeneration'
 import './BuilderApp.css'
 import 'a-form-presentation-bootstrap/styles.css'
 import 'a-form-presentation-tailwind/styles.css'
@@ -87,6 +91,24 @@ const initialFields: readonly BuilderField[] = [
   { id: 'field-3', path: 'customer.acceptsTerms', jsonPath: '$.customer.acceptsTerms', label: 'Accepts terms', kind: 'checkbox', span: 12, align: 'start', sampleValue: true },
 ]
 
+const initialProject: BuilderProject = {
+  fields: initialFields,
+  separators: [],
+  baseSpec: null,
+  dataDocument: { source: exampleData, format: 'yaml' },
+  codeDraft: null,
+  codeFormat: 'yaml',
+  previewValue: parseExampleData(exampleData).value ?? {},
+}
+
+function nextId(items: readonly { id: string }[], prefix: string): string {
+  const sequence = items.reduce((max, { id }) => {
+    const suffix = id.startsWith(prefix) ? Number(id.slice(prefix.length)) : 0
+    return Number.isSafeInteger(suffix) ? Math.max(max, suffix) : max
+  }, 0)
+  return `${prefix}${sequence + 1}`
+}
+
 type BuilderView = 'design' | 'code' | 'preview'
 type InspectorView = 'properties' | 'spec'
 type SourceView = 'data' | 'fields'
@@ -106,6 +128,8 @@ const kindIcons: Record<FieldKind, LucideIcon> = {
   range: SlidersHorizontal,
   autocomplete: Search,
   asyncOptions: Cloud,
+  array: Rows3,
+  object: Braces,
 }
 
 const viewports: readonly { id: Viewport; label: string; icon: LucideIcon }[] = [
@@ -135,19 +159,16 @@ function Preview({
   viewport, 
   theme, 
   inline,
+  value,
   onChange 
 }: { 
   spec: NormalizedFormSpec; 
   viewport: Viewport; 
   theme: PreviewTheme, 
   inline?: boolean,
-  onChange?: (value: JsonObject) => void 
+  value: JsonObject,
+  onChange: (value: JsonObject) => void
 }) {
-  const [value, setValue] = useState<JsonObject>({})
-  const handleChange = (value: JsonObject) => {
-    setValue(value)
-    onChange?.(value)
-  }
   return (
     <div className={`builder-preview-frame builder-preview-${viewport}`}>
       <div className="builder-form-canvas">
@@ -161,7 +182,7 @@ function Preview({
               key={theme}
               spec={spec}
               value={value}
-              onChange={handleChange}
+              onChange={onChange}
               presentation={{ registry: presentationRegistry, adapterId: theme }}
             />
           ) : (
@@ -170,7 +191,7 @@ function Preview({
             spec={spec}
             viewport={viewport}
             value={value}
-            onChange={handleChange}
+            onChange={onChange}
             noHtml5Validate
             presentation={{ registry: presentationRegistry, adapterId: theme }}
           />
@@ -181,16 +202,16 @@ function Preview({
 }
 
 export function BuilderApp() {
-  const [dataDocument, setDataDocument] = useState<StructuredDocument>({ source: exampleData, format: 'yaml' })
-  const [, setPreviewOutputDocument] = useState<StructuredDocument>({ source: exampleData, format: 'yaml' })
-  const [fields, setFields] = useState<readonly BuilderField[]>(initialFields)
-  const [separators, setSeparators] = useState<readonly BuilderSeparator[]>([])
-  const [baseSpec, setBaseSpec] = useState<FormSpec>()
+  const workspace = useBuilderProject(initialProject)
+  const { project, updateProject } = workspace
+  const { fields, separators, baseSpec: storedBaseSpec, dataDocument, codeDraft, codeFormat, previewValue } = project
+  const baseSpec = storedBaseSpec ?? undefined
   const [selectedFieldId, setSelectedFieldId] = useState<string>('field-1')
   const [pathDraft, setPathDraft] = useState('')
   const [pathDraftSource, setPathDraftSource] = useState<string>()
   const [pendingPayload, setPendingPayload] = useState<PalettePayload>()
-  const [view, setView] = useState<BuilderView>('design')
+  const [requestedView, setView] = useState<BuilderView>(() => codeDraft ? 'code' : 'design')
+  const view: BuilderView = codeDraft ? 'code' : requestedView
   const [inspectorView, setInspectorView] = useState<InspectorView>('properties')
   const [sourceView, setSourceView] = useState<SourceView>('fields')
   const [viewport, setViewport] = useState<Viewport>('desktop')
@@ -198,38 +219,29 @@ export function BuilderApp() {
   const [inlinePreview, setInlinePreview] = useState(false)
   const [notice, setNotice] = useState('Drag a source and drop it anywhere on the canvas; the grid wraps automatically.')
   const [dataCopied, setDataCopied] = useState(false)
-  // const [copied, setCopied] = useState(false)
-  const [codeDocument, setCodeDocument] = useState<StructuredDocument>({ source: '', format: 'yaml' })
-  // const [specFormat, setSpecFormat] = useState<StructuredDocument['format']>('yaml')
-  const fieldSequence = useRef(4)
-  const separatorSequence = useRef(1)
+  const [codeIssue, setCodeIssue] = useState<{ source: string; message: string } | null>(null)
   const deferredDataSource = useDeferredValue(dataDocument.source)
   const parsedData = parseExampleData(deferredDataSource)
   const dataPaths = parsedData.value ? listDataPaths(parsedData.value) : []
   const spec = buildFormSpec(fields, separators, baseSpec)
   const normalized = normalizeFormSpec(spec)
   const specYaml = formSpecToYaml(fields, separators, baseSpec)
-  // const specDocument: StructuredDocument = {
-  //   source: specFormat === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
-  //   format: specFormat,
-  // }
-  const selectedField = fields.find((field) => field.id === selectedFieldId)
+  const codeDocument: StructuredDocument = codeDraft ?? {
+    source: codeFormat === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
+    format: codeFormat,
+  }
+  const codeError = codeIssue?.source === codeDocument.source ? codeIssue.message : null
+  const selectedField = fields.find((field) => field.id === selectedFieldId) ?? fields[0]
   const placedPaths = new Set(fields.map((field) => field.path))
-  const pathSource = `${selectedFieldId}|${selectedField?.jsonPath ?? ''}`
+  const pathSource = `${selectedField?.id ?? ''}|${selectedField?.jsonPath ?? ''}`
   if (pathDraftSource !== pathSource) {
     setPathDraftSource(pathSource)
     setPathDraft(selectedField?.jsonPath ?? '')
   }
 
   const selectView = (nextView: BuilderView) => {
-    if (nextView === 'code') {
-      setCodeDocument((current) => ({
-        ...current,
-        source: current.format === 'json' ? JSON.stringify(spec, null, 2) : specYaml,
-      }))
-    } else {
-      applySpecDocument(codeDocument)
-    }
+    if (nextView === view) return
+    if (view === 'code' && codeDraft && !applySpecDocument(codeDraft)) return
     setView(nextView)
   }
 
@@ -240,7 +252,7 @@ export function BuilderApp() {
   }
 
   const createField = (payload: PalettePayload): BuilderField => {
-    const id = `field-${fieldSequence.current++}`
+    const id = nextId(fields, 'field-')
     const path = payload.path ?? `fields.${payload.kind}${id.replace('field-', '')}`
     return {
       id,
@@ -270,7 +282,7 @@ export function BuilderApp() {
     const clampedIndex = Math.max(0, Math.min(withoutMoving.length, index))
     const nextFields = [...withoutMoving]
     nextFields.splice(clampedIndex, 0, field)
-    setFields(nextFields)
+    updateProject({ fields: nextFields })
     setSelectedFieldId(field.id)
     setPendingPayload(undefined)
     setInspectorView('properties')
@@ -282,9 +294,9 @@ export function BuilderApp() {
     const beforeFieldId = fields[targetIndex]?.id
     const current = separators.find((separator) => separator.id === separatorId)
     if (!current || current.beforeFieldId === beforeFieldId) return
-    setSeparators((items) => items.map((separator) => separator.id === separatorId
+    updateProject({ separators: separators.map((separator) => separator.id === separatorId
       ? { ...separator, beforeFieldId }
-      : separator))
+      : separator) })
     setNotice(`${current.title} moved.`)
   }
 
@@ -325,25 +337,25 @@ export function BuilderApp() {
   }
 
   const addSeparator = () => {
-    const separatorId = `separator-${separatorSequence.current++}`
-    setSeparators((current) => [...current, {
+    const separatorId = nextId(separators, 'separator-')
+    updateProject({ separators: [...separators, {
       id: separatorId,
       title: 'New section',
       ...(selectedField ? { beforeFieldId: selectedField.id } : {}),
-    }])
+    }] })
     setNotice(`${separatorId} added to the field flow.`)
   }
 
   const renameSeparator = (separatorId: string, title: string) => {
-    setSeparators((current) => current.map((separator) => separator.id === separatorId ? { ...separator, title } : separator))
+    updateProject({ separators: separators.map((separator) => separator.id === separatorId ? { ...separator, title } : separator) }, `separator:${separatorId}:title`)
   }
 
   const removeSeparator = (separatorId: string) => {
-    setSeparators((current) => current.filter((separator) => separator.id !== separatorId))
+    updateProject({ separators: separators.filter((separator) => separator.id !== separatorId) })
   }
 
-  const updateSelected = (changes: Partial<BuilderField>) => {
-    setFields((current) => current.map((field) => field.id === selectedFieldId ? { ...field, ...changes } : field))
+  const updateSelected = (changes: Partial<BuilderField>, group?: string) => {
+    updateProject({ fields: fields.map((field) => field.id === selectedField?.id ? { ...field, ...changes } : field) }, group)
   }
 
   const updateSpan = (span: number) => {
@@ -359,7 +371,7 @@ export function BuilderApp() {
       setPathDraft(selectedField.jsonPath)
       return
     }
-    const duplicate = fields.some((field) => field.id !== selectedFieldId && field.path === path)
+    const duplicate = fields.some((field) => field.id !== selectedField.id && field.path === path)
     if (duplicate) {
       setNotice(`Path "${path}" is already used by another field.`)
       setPathDraft(selectedField.jsonPath)
@@ -369,55 +381,46 @@ export function BuilderApp() {
   }
 
   const removeSelected = () => {
-    const removedIndex = fields.findIndex((field) => field.id === selectedFieldId)
-    const nextAnchor = fields.slice(removedIndex + 1).find((field) => field.id !== selectedFieldId)?.id
-    setSeparators((current) => current.map((separator) => separator.beforeFieldId === selectedFieldId
-      ? { ...separator, ...(nextAnchor ? { beforeFieldId: nextAnchor } : { beforeFieldId: undefined }) }
-      : separator))
-    setFields((current) => current.filter((field) => field.id !== selectedFieldId))
-    setSelectedFieldId('')
+    if (!selectedField) return
+    const removedIndex = fields.findIndex((field) => field.id === selectedField.id)
+    const nextAnchor = fields[removedIndex + 1]?.id
+    updateProject({
+      separators: separators.map((separator) => separator.beforeFieldId === selectedField.id
+        ? { ...separator, beforeFieldId: nextAnchor }
+        : separator),
+      fields: fields.filter((field) => field.id !== selectedField.id),
+    })
+    setSelectedFieldId(nextAnchor ?? '')
+  }
+
+  const commitSpecImport = (changes: ImportedSpec, format: StructuredDocument['format']) => {
+    updateProject(changes)
+    setSelectedFieldId(changes.fields[0]?.id ?? '')
+    setPendingPayload(undefined)
+    setInspectorView('properties')
+    setCodeIssue(null)
+    setNotice(`${format.toUpperCase()} applied with ${changes.fields.length} field${changes.fields.length === 1 ? '' : 's'}.`)
   }
 
   const applySpecDocument = (document: StructuredDocument): boolean => {
-    const parsed = parseYamlSpec(document.source)
-    const diagnostics = parsed.value
-      ? [...parsed.diagnostics, ...validateFormSpec(parsed.value)]
-      : parsed.diagnostics
-    const error = diagnostics.find((diagnostic) => diagnostic.severity === 'error')
-    if (!parsed.value || error) {
-      setNotice(`Could not apply ${document.format.toUpperCase()}: ${error?.message ?? 'invalid AForm spec.'}`)
-      return false
-    }
-
     try {
-      const { fields: importedFields, separators: importedSeparators } = formSpecToBuilderFields(parsed.value)
-      const firstField = importedFields[0]
-      setFields(importedFields)
-      setSeparators(importedSeparators)
-      setBaseSpec(parsed.value)
-      fieldSequence.current = importedFields.length + 1
-      separatorSequence.current = importedSeparators.length + 1
-      setSelectedFieldId(firstField?.id ?? '')
-      setPendingPayload(undefined)
-      setView('design')
-      setInspectorView('properties')
-      setNotice(`${document.format.toUpperCase()} applied with ${importedFields.length} field${importedFields.length === 1 ? '' : 's'}.`)
+      commitSpecImport(specImportChanges(document, dataDocument.format, false), document.format)
       return true
     } catch (error) {
-      setNotice(`Could not apply ${document.format.toUpperCase()}: ${error instanceof Error ? error.message : 'unsupported layout.'}`)
+      const message = `Could not apply ${document.format.toUpperCase()}: ${error instanceof Error ? error.message : 'unsupported layout.'}`
+      setNotice(message)
+      setCodeIssue({ source: document.source, message })
       return false
     }
   }
 
   const applyCode = () => {
-    applySpecDocument(codeDocument)
+    if (applySpecDocument(codeDocument)) setView('design')
   }
 
-  // const importGeneratedSpec = (document: StructuredDocument): boolean => {
-  //   const applied = applySpecDocument(document)
-  //   if (applied) setSpecFormat(document.format)
-  //   return applied
-  // }
+  const changeData = (document: StructuredDocument) => {
+    updateProject(dataImportChanges(document, codeFormat, false), 'data-source')
+  }
 
   const copyData = async () => {
     try {
@@ -429,25 +432,28 @@ export function BuilderApp() {
     }
   }
 
-  // const copySpec = async () => {
-  //   try {
-  //     await navigator.clipboard.writeText(specDocument.source)
-  //     setCopied(true)
-  //     window.setTimeout(() => setCopied(false), 1400)
-  //   } catch {
-  //     setNotice('Clipboard access is unavailable. Use Download YAML instead.')
-  //   }
-  // }
-
-  const downloadSpec = () => {
-    const extension = codeDocument.format === 'json' ? 'json' : 'yaml'
-    const source = codeDocument.source || (extension === 'json' ? JSON.stringify(spec, null, 2) : specYaml)
-    const url = URL.createObjectURL(new Blob([source], { type: extension === 'json' ? 'application/json' : 'text/yaml' }))
+  const download = (source: string, filename: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([source], { type }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `form.a-form.${extension}`
+    anchor.download = filename
     anchor.click()
     URL.revokeObjectURL(url)
+  }
+
+  const downloadSpec = () => {
+    download(codeDocument.source, `form.a-form.${codeDocument.format}`, codeDocument.format === 'json' ? 'application/json' : 'text/yaml')
+  }
+
+  const undo = () => {
+    workspace.undo()
+    setPendingPayload(undefined)
+    setNotice('Change undone.')
+  }
+  const redo = () => {
+    workspace.redo()
+    setPendingPayload(undefined)
+    setNotice('Change redone.')
   }
 
   const renderSeparator = (separator: BuilderSeparator, index: number) => (
@@ -477,7 +483,16 @@ export function BuilderApp() {
   )
 
   return (
-    <main className="builder-shell">
+    <main className="builder-shell" onKeyDown={(event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"], .monaco-editor')) return
+      const key = event.key.toLowerCase()
+      if (key === 'z' || key === 'y') {
+        event.preventDefault()
+        if (key === 'y' || event.shiftKey) { if (workspace.canRedo) redo() }
+        else if (workspace.canUndo) undo()
+      }
+    }}>
       <header className="builder-topbar">
         <div className="builder-brand-mark"><Sparkles size={17} /></div>
         <div className="builder-brand-copy"><strong>AForm</strong><span>/ Registration <em>v1</em></span></div>
@@ -486,12 +501,36 @@ export function BuilderApp() {
           <button className={view === 'code' ? 'active' : ''} type="button" onClick={() => selectView('code')}><Code2 size={15} /> Code (YAML)</button>
           <button className={view === 'preview' ? 'active' : ''} type="button" onClick={() => selectView('preview')}><Eye size={15} /> Preview</button>
         </div>
+        <div className="builder-top-actions builder-history" aria-label="Change history">
+          <button className="builder-icon-action" type="button" title="Undo (Ctrl/Cmd+Z outside editors)" aria-label="Undo" disabled={!workspace.canUndo} onClick={undo}><Undo2 size={15} /></button>
+          <button className="builder-icon-action" type="button" title="Redo (Ctrl/Cmd+Shift+Z outside editors)" aria-label="Redo" disabled={!workspace.canRedo} onClick={redo}><Redo2 size={15} /></button>
+          <span className={`builder-save-status${workspace.problem ? ' builder-save-error' : ''}`} role="status" title="Local to this browser; not synced to a server.">
+            {workspace.problem ? 'Not saved' : workspace.saving ? 'Saving...' : 'Saved locally'}
+          </span>
+        </div>
         <nav className="builder-external-links" aria-label="External links">
           <a href="https://github.com/alansferreira/a-form" target="_blank" rel="noreferrer" title="Open AForm on GitHub" aria-label="Open AForm on GitHub"><Github size={15} /></a>
           <a href="https://www.linkedin.com/in/alansferreira/" target="_blank" rel="noreferrer" title="Open Alan Ferreira on LinkedIn" aria-label="Open Alan Ferreira on LinkedIn"><Linkedin size={15} /></a>
         </nav>
       </header>
 
+      {workspace.problem && (
+        <aside className="builder-storage-alert" role="alert">
+          <span>{workspace.problem.message}</span>
+          <div>
+            <button type="button" onClick={() => download(workspace.project.dataDocument.source, `example-data.${workspace.project.dataDocument.format}`, 'text/plain')}>Download data source</button>
+            <button type="button" onClick={() => download(JSON.stringify(workspace.project.previewValue, null, 2), 'preview-values.json', 'application/json')}>Download preview values</button>
+            <button type="button" onClick={downloadSpec}>Download spec</button>
+            {workspace.savedCopy !== null && <button type="button" onClick={() => download(workspace.savedCopy!, 'studio-saved-copy.json', 'application/json')}>Download saved copy</button>}
+            {workspace.problem.kind === 'conflict' && <button type="button" onClick={() => {
+              if (workspace.loadSaved()) { setView('design'); setPendingPayload(undefined); setNotice('Saved project loaded.') }
+            }}>Load saved copy (discard this tab)</button>}
+            {workspace.problem.kind === 'unavailable'
+              ? <button type="button" onClick={workspace.save}>Retry saving</button>
+              : <button type="button" onClick={workspace.replaceSaved}>Replace saved copy with this project</button>}
+          </div>
+        </aside>
+      )}
       <section className="builder-toolbar">
         <span className="builder-breadcrumb"><Braces size={15} /> form.a-form.yaml <ChevronRight size={13} /> layout</span>
         <span className="builder-notice">{pendingPayload ? `${pendingPayload.label} selected - click a grid slot` : notice}</span>
@@ -516,8 +555,27 @@ export function BuilderApp() {
                 label="Example data"
                 path="example-data.yaml"
                 theme="a-form-dark"
-                onChange={setDataDocument}
-                toolbarActions={<button type="button" title={`Copy ${dataDocument.format.toUpperCase()}`} aria-label={`Copy ${dataDocument.format.toUpperCase()}`} onClick={copyData}>{dataCopied ? <Check size={14} /> : <Clipboard size={14} />}</button>}
+                onChange={changeData}
+                importOption={{
+                  label: 'Create a spec from these data',
+                  description: 'Replace the current spec, layout, and code draft with a form inferred from these data. Existing data values are kept.',
+                }}
+                onImport={(document, { generateRelated }) => {
+                  const changes = dataImportChanges(document, codeFormat, generateRelated)
+                  updateProject(changes)
+                  if (generateRelated) {
+                    setSelectedFieldId(changes.fields?.[0]?.id ?? '')
+                    setPendingPayload(undefined)
+                    setCodeIssue(null)
+                    setInspectorView('properties')
+                    setView('design')
+                    setNotice('Data imported and a matching spec created.')
+                  }
+                }}
+                toolbarActions={<>
+                  {parsedData.error && <span role="alert" title={parsedData.error}>Invalid data</span>}
+                  <button type="button" title={`Copy ${dataDocument.format.toUpperCase()}`} aria-label={`Copy ${dataDocument.format.toUpperCase()}`} onClick={copyData}>{dataCopied ? <Check size={14} /> : <Clipboard size={14} />}</button>
+                </>}
                 options={{ automaticLayout: true, fontFamily: 'DM Mono, monospace', fontSize: 11, lineHeight: 18, minimap: { enabled: false }, padding: { top: 10 }, scrollBeyondLastLine: false, tabSize: 2 }}
               />
             </div>
@@ -576,7 +634,7 @@ export function BuilderApp() {
 
         <section className="builder-stage">
           <div className="builder-stage-heading">
-            <div><strong>{view === 'design' ? 'User Registration Flow' : view === 'code' ? 'AForm specification' : 'Live preview'}</strong><span>{view === 'design' ? 'Fields flow left-to-right and wrap automatically when a line runs out of space' : `${fields.length} fields`}</span></div>
+            <div><strong>{view === 'design' ? 'User Registration Flow' : view === 'code' ? 'AForm specification' : 'Live preview'}</strong><span>{view === 'design' ? 'Fields flow left-to-right and wrap automatically when a line runs out of space' : `${fields.length} fields${view === 'code' && codeDraft ? ' / unapplied draft' : ''}`}</span></div>
             {view === 'design' && <button type="button" onClick={addSeparator}><SeparatorHorizontal size={15} /> Add separator</button>}
             {view === 'code' && <button type="button" onClick={applyCode}><Check size={15} /> Apply {codeDocument.format.toUpperCase()}</button>}
             {view === 'preview' && (
@@ -605,7 +663,7 @@ export function BuilderApp() {
                   return [
                     ...separators.filter((separator) => separator.beforeFieldId === field.id).map((separator) => renderSeparator(separator, index)),
                     <button
-                      className={`builder-field-block ${selectedFieldId === field.id ? 'selected' : ''} ${touchDrag?.target?.index === index ? 'touch-target' : ''}`}
+                      className={`builder-field-block ${selectedField?.id === field.id ? 'selected' : ''} ${touchDrag?.target?.index === index ? 'touch-target' : ''}`}
                       data-builder-drop-index={index}
                       draggable
                       key={field.id}
@@ -644,23 +702,36 @@ export function BuilderApp() {
             </div>
           ) : view === 'code' ? (
             <div className="builder-code-stage">
+              {codeError && <p className="builder-code-error" role="alert">{codeError}</p>}
               <StructuredEditor
                 document={codeDocument}
                 label="AForm schema"
                 path="form.a-form.yaml"
                 theme="a-form-dark"
-                onChange={setCodeDocument}
+                onChange={(document) => updateProject({ codeDraft: document, codeFormat: document.format }, 'code-draft')}
+                importOption={{
+                  label: 'Create example data from this spec',
+                  description: 'Apply this spec and replace the data source and preview values with generated test data. Defaults and examples from the spec may be copied.',
+                }}
+                onImport={(document, { generateRelated }) => {
+                  if (!generateRelated) {
+                    updateProject({ codeDraft: document, codeFormat: document.format })
+                    return
+                  }
+                  const changes = specImportChanges(document, dataDocument.format, true)
+                  commitSpecImport(changes, document.format)
+                  setView('design')
+                  setSourceView('data')
+                  setNotice('Spec imported and example data created.')
+                }}
                 toolbarActions={<button type="button" onClick={downloadSpec}><Download size={14} /> Download</button>}
                 options={{ automaticLayout: true, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, lineHeight: 20, minimap: { enabled: false }, padding: { top: 16 }, scrollBeyondLastLine: false }}
               />
             </div>
           ) : (
-            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} inline={inlinePreview && Boolean(normalized.inline)} onChange={
-              (value) => {
-                console.log('Preview value changed:');
-                console.log(value);
-                setPreviewOutputDocument({...dataDocument, source: yaml.stringify(value, { indent: 2})})
-              }} /></div>
+            <div className="builder-preview-stage"><Preview spec={normalized} viewport={viewport} theme={previewTheme} inline={inlinePreview && Boolean(normalized.inline)} value={previewValue} onChange={
+              (value) => updateProject({ previewValue: value })
+            } /></div>
           )}
         </section>
 
@@ -685,9 +756,10 @@ export function BuilderApp() {
           //   </div>
           // ) : 
           selectedField ? (
-            <div className="builder-properties">
+            <fieldset className="builder-properties" aria-label="Field properties" disabled={codeDraft !== null}>
+              {codeDraft && <p className="builder-draft-notice">Apply or undo the code draft before changing field properties.</p>}
               <div className="builder-selection-heading"><span className="builder-kind-icon">{(() => { const Icon = kindIcons[selectedField.kind]; return <Icon size={17} /> })()}</span><div><strong>{selectedField.label}</strong><small>{selectedField.kind} field</small></div></div>
-              <label>Label<input value={selectedField.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
+              <label>Label<input value={selectedField.label} onChange={(event) => updateSelected({ label: event.target.value }, `field:${selectedField.id}:label`)} /></label>
               <label>Absolute path<input
                 value={pathDraft}
                 onChange={(event) => setPathDraft(event.target.value)}
@@ -695,6 +767,14 @@ export function BuilderApp() {
                 onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitFieldPath(pathDraft) } }}
               /></label>
               <label>Field type<select value={selectedField.kind} onChange={(event) => updateSelected({ kind: event.target.value as FieldKind })}>{FIELD_KINDS.map((item) => <option value={item.kind} key={item.kind}>{item.label}</option>)}</select></label>
+              {selectedField.kind === 'array' && (
+                <fieldset className="builder-array-options">
+                  <legend>Array controls</legend>
+                  <label><input type="checkbox" checked={selectedField.arrayAddable ?? true} onChange={(event) => updateSelected({ arrayAddable: event.target.checked })} /> Allow adding items</label>
+                  <label><input type="checkbox" checked={selectedField.arrayRemovable ?? true} onChange={(event) => updateSelected({ arrayRemovable: event.target.checked })} /> Allow removing items</label>
+                  <label><input type="checkbox" checked={selectedField.arrayOrderable ?? true} onChange={(event) => updateSelected({ arrayOrderable: event.target.checked })} /> Allow reordering items</label>
+                </fieldset>
+              )}
               {selectedField.kind === 'range' && (
                 <fieldset>
                   <legend>Range</legend>
@@ -702,7 +782,7 @@ export function BuilderApp() {
                     <label>Min<input type="number" value={selectedField.rangeMin ?? 0} onChange={(event) => updateSelected({ rangeMin: Number(event.target.value) })} /></label>
                     <label>Max<input type="number" value={selectedField.rangeMax ?? 100} onChange={(event) => updateSelected({ rangeMax: Number(event.target.value) })} /></label>
                     <label>Step<input type="number" value={selectedField.rangeStep ?? 1} onChange={(event) => updateSelected({ rangeStep: Number(event.target.value) })} /></label>
-                  </div>
+                        </div>
                 </fieldset>
               )}
               {(selectedField.kind === 'autocomplete' || selectedField.kind === 'asyncOptions') && (
@@ -731,7 +811,7 @@ export function BuilderApp() {
               </fieldset>
               <div className="builder-property-summary"><span>Desktop <strong>{selectedField.span}/12</strong></span><span>Tablet <strong>{selectedField.span}/12</strong></span><span>Mobile <strong>12/12</strong></span></div>
               <button className="builder-delete-field" type="button" onClick={removeSelected}><Trash2 size={14} /> Remove field</button>
-            </div>
+            </fieldset>
           ) : (
             <div className="builder-no-selection"><Settings2 size={22} /><strong>No field selected</strong><span>Select a field on the grid to edit its properties.</span></div>
           )}

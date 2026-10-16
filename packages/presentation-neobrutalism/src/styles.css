@@ -75,3 +75,22 @@
   font: inherit;
   font-weight: 900;
 }
+
+.a-form-neobrutalism .a-form-action-button {
+  color: var(--a-form-neo-ink);
+  border: 2px solid var(--a-form-neo-ink);
+  border-radius: 0;
+  background: var(--a-form-neo-yellow);
+  box-shadow: 2px 2px 0 var(--a-form-neo-ink);
+  font-weight: 900;
+}
+
+.a-form-neobrutalism .a-form-action-button:focus-visible {
+  outline: 2px solid var(--a-form-neo-cyan);
+  outline-offset: 2px;
+}
+
+.a-form-neobrutalism .a-form-action-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}

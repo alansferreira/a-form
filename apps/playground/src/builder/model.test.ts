@@ -1,7 +1,90 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { parseYamlSpec } from 'a-form-parser'
+import type { JsonValue } from 'a-form-core'
 import { buildFormSpec, formSpecToBuilderFields, inferFieldKind, listDataPaths, parseExampleData } from './model'
 
 describe('builder model', () => {
+  it('offers arrays from example data as draggable fields and infers their item schemas', () => {
+    const env: JsonValue[] = [
+      { name: 'LOG_LEVEL', value: 'INFO' },
+      { name: 'PASSWORD', valueFrom: { secretKeyRef: { name: 'example', key: 'PASSWORD' } } },
+    ]
+    const data = { settings: { env } }
+    const paths = listDataPaths(data)
+    expect(paths[1]).toMatchObject({ jsonPath: '$.settings.env', branch: false, value: data.settings.env })
+    expect(inferFieldKind('settings.env', data.settings.env)).toBe('array')
+    const built = buildFormSpec([{
+      id: 'field-1', path: 'settings.env', jsonPath: '$.settings.env', label: 'Environment',
+      kind: 'array', span: 12, align: 'start', sampleValue: data.settings.env,
+    }])
+    expect(built.schema).toMatchObject({
+      properties: {
+        settings: {
+          properties: {
+            env: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  value: { type: 'string' },
+                  valueFrom: { type: 'object', properties: { secretKeyRef: { type: 'object' } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+  })
+
+  it('round-trips array constraints, item references and operation options', () => {
+    const baseSpec = {
+      version: '1' as const,
+      schema: {
+        type: 'object',
+        definitions: { entry: { type: 'object', properties: { name: { type: 'string' } } } },
+        properties: { entries: { type: 'array', minItems: 1, maxItems: 5, items: { $ref: '#/definitions/entry' } } },
+      },
+      uiSchema: { entries: { 'ui:options': { orderable: false, addable: false, removable: false, copyable: true } } },
+      layout: [{ type: 'field' as const, path: 'entries' }],
+    }
+    const { fields } = formSpecToBuilderFields(baseSpec)
+    expect(fields[0]).toMatchObject({ kind: 'array', arrayAddable: false, arrayRemovable: false, arrayOrderable: false })
+    const built = buildFormSpec(fields, [], baseSpec)
+    expect(built.schema).toMatchObject(baseSpec.schema)
+    expect(built.uiSchema).toEqual(baseSpec.uiSchema)
+  })
+
+  it('clears scalar-only constraints when a field is converted to an array', () => {
+    const baseSpec = {
+      version: '1' as const,
+      schema: {
+        type: 'object',
+        properties: { entries: { type: 'string', enum: ['one', 'two'], default: 'one', minLength: 1 } },
+      },
+      layout: [{ type: 'field' as const, path: 'entries' }],
+    }
+    const { fields } = formSpecToBuilderFields(baseSpec)
+    const built = buildFormSpec(fields.map((field) => ({ ...field, kind: 'array' })), [], baseSpec)
+    expect(built.schema).toMatchObject({ properties: { entries: { type: 'array', items: { type: 'string' } } } })
+    expect(built.schema.properties).not.toMatchObject({ entries: { enum: ['one', 'two'] } })
+  })
+
+  it('preserves array and object fields when the production example is imported into Studio', () => {
+    const parsed = parseYamlSpec(readFileSync(
+      new URL('../../../../examples/helm-values-production.a-form.yaml', import.meta.url), 'utf8',
+    ))
+    expect(parsed.value).toBeDefined()
+    const { fields, separators } = formSpecToBuilderFields(parsed.value!)
+    expect(fields.find((field) => field.path === 'worker.worker.env')?.kind).toBe('array')
+    expect(fields.find((field) => field.path === 'worker.externalSecrets')?.kind).toBe('object')
+    const built = buildFormSpec(fields, separators, parsed.value)
+    expect(built.schema).toMatchObject(parsed.value!.schema)
+    expect(built.uiSchema).toMatchObject(parsed.value!.uiSchema!)
+  })
+
   it('extracts simple absolute paths from YAML example data', () => {
     const parsed = parseExampleData('customer:\n  email: ana@example.com\n  active: true\n')
     expect(parsed.error).toBeUndefined()

@@ -75,6 +75,23 @@
   font-weight: 600;
 }
 
+.a-form-tailwind .a-form-action-button {
+  color: var(--a-form-tailwind-primary);
+  border: 1px solid var(--a-form-tailwind-border);
+  border-radius: .375rem;
+  background: #fff;
+}
+
+.a-form-tailwind .a-form-action-button:focus-visible {
+  outline: 2px solid var(--a-form-tailwind-primary);
+  outline-offset: 2px;
+}
+
+.a-form-tailwind .a-form-action-button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
 .a-form-tailwind-separator {
   display: flex;
   align-items: center;

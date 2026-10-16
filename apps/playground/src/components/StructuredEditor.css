@@ -25,6 +25,11 @@
 .structured-editor-import-body { padding: 14px 18px 18px; }
 .structured-editor-import-body > label { color: #121212; font: 800 9px var(--mono); text-transform: uppercase; }
 .structured-editor-import-canvas { width: 100%; min-width: 0; height: clamp(220px, 42svh, 380px); margin-top: 6px; overflow: hidden; border: 2px solid #121212; background: #121212; box-shadow: 3px 3px 0 #121212; }
+.structured-editor-import-option { padding: 0 18px 14px; }
+.structured-editor-import-option label { display: flex; align-items: center; gap: 8px; color: #121212; font-size: 12px; font-weight: 700; cursor: pointer; }
+.structured-editor-import-option input { accent-color: #d97706; }
+.structured-editor-import-option p { margin: 6px 0 0; color: #625f58; font-size: 11px; line-height: 1.5; }
+.structured-editor-import-error { margin: 0 18px 14px; color: #991b1b; font-size: 12px; white-space: pre-wrap; }
 .structured-editor-modal footer { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 18px; border-top: 2px solid #121212; background: #fff; }
 .structured-editor-modal footer > span { font: 800 9px var(--mono); text-transform: uppercase; }
 .structured-editor-modal footer div { display: flex; gap: 7px; }

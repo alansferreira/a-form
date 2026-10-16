@@ -221,6 +221,53 @@ const [viewport, setViewport] = useState<AFormViewport>("mobile");
 
 The component applies the selected normalized span through CSS Grid. It renders only field paths present in the AForm layout and uses CSS ordering to match layout order.
 
+## Arrays
+
+`AForm` supports arrays of scalars, objects, and nested arrays through RJSF.
+Declare the array once in the layout; item fields are rendered within it:
+
+```yaml
+version: "1"
+schema:
+  type: object
+  properties:
+    entries:
+      type: array
+      title: Entries
+      minItems: 1
+      maxItems: 10
+      items:
+        type: object
+        properties:
+          name: { type: string, title: Name }
+          value: { type: string, title: Value }
+uiSchema:
+  entries:
+    ui:options:
+      addable: true
+      removable: true
+      orderable: true
+layout:
+  - { type: field, path: entries, span: 12 }
+```
+
+Use Add, Remove, Move up, and Move down to change the data. `maxItems` prevents
+adding beyond the limit, and `minItems` prevents removing below the minimum.
+`disabled` and `readOnly` disable mutations. Set the corresponding `ui:options`
+flag to `false` to hide an operation. Structural changes trigger `onChange`,
+participate in validation, and receive the same edited emphasis as other fields.
+
+Material and Bootstrap retain their native array templates and buttons. The
+base renderer, Tailwind, and Neobrutalism use labeled buttons that do not require
+an icon font. Custom adapters can override the standard RJSF array templates
+and `ButtonTemplates`. `.a-form-array` / `data-a-form-array` identify each array;
+the fallback templates expose `.a-form-array-item`, `.a-form-array-actions`,
+and `.a-form-action-button`.
+
+Inline placeholders still target scalar fields; array editing belongs to the
+normal form. Arrays rendered as specialized widgets (such as enum multi-selects)
+retain the widget's own selection controls.
+
 ## Styling Hooks
 
 Both `AForm` and `AInlineForm` give edited fields persistent bold emphasis. Normal

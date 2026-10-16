@@ -1,6 +1,7 @@
-import Form from "@rjsf/core";
+import Form, { getDefaultRegistry } from "@rjsf/core";
 import type {
   FieldTemplateProps,
+  FieldProps,
   ObjectFieldTemplateProps,
   RJSFSchema,
   UiSchema,
@@ -27,6 +28,7 @@ import { useAsyncValidation } from "./useAsyncValidation.js";
 import type { AFormAsyncValidationOptions, AsyncFieldState } from "./useAsyncValidation.js";
 import { defaultWidgets } from "./widgets.js";
 import { EditedFieldStyles, editedFieldStyle, useEditedFields } from "./useEditedFields.js";
+import { ArrayFieldItemTemplate, defaultActionButtons } from "./arrayTemplates.js";
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
 
@@ -55,6 +57,7 @@ interface LayoutFormContext {
   readonly layoutPaths: readonly string[];
   readonly asyncFields: Readonly<Record<string, AsyncFieldState>>;
   readonly presentationFieldTemplate?: ComponentType<FieldTemplateProps>;
+  readonly presentationArrayField?: ComponentType<FieldProps>;
   readonly separators: readonly SeparatorPlacement[];
   readonly presentationSeparatorTemplate?: ComponentType<SeparatorTemplateProps>;
   readonly rootFormData: JsonObject;
@@ -276,6 +279,29 @@ function createObjectFieldTemplate() {
 
 const FieldTemplate = createFieldTemplate();
 const ObjectFieldTemplate = createObjectFieldTemplate();
+const DefaultArrayField = getDefaultRegistry().fields.ArrayField;
+
+function ArrayField(props: FieldProps) {
+  const context = props.registry.formContext as LayoutFormContext;
+  const Component = context.presentationArrayField ?? DefaultArrayField;
+  if (!Component) throw new Error("An ArrayField component must be registered.");
+  const atMinimum = Array.isArray(props.formData)
+    && typeof props.schema.minItems === "number"
+    && props.formData.length <= props.schema.minItems;
+  const uiSchema = atMinimum ? {
+    ...props.uiSchema,
+    "ui:options": { ...getUiOptions(props.uiSchema, props.registry.globalUiOptions), removable: false },
+  } : props.uiSchema ?? {};
+  return (
+    <div className="a-form-array" data-a-form-array={props.fieldPathId.path.join(".")}>
+      <Component
+        {...props}
+        uiSchema={uiSchema}
+        onChange={(next, path, errors, id) => props.onChange(next, path, errors, id ?? props.fieldPathId.$id)}
+      />
+    </div>
+  );
+}
 
 export function AForm({
   spec,
@@ -338,6 +364,9 @@ export function AForm({
     rootFormData: value ?? latestValue.current,
     editedPaths: editedFields.editedPaths,
     editedFieldStyle: editedFieldStyle(presentationAdapter),
+    ...(presentationAdapter?.fields?.ArrayField
+      ? { presentationArrayField: presentationAdapter.fields.ArrayField }
+      : {}),
     ...(presentationAdapter?.templates?.FieldTemplate
       ? { presentationFieldTemplate: presentationAdapter.templates.FieldTemplate }
       : {}),
@@ -387,13 +416,14 @@ export function AForm({
           if (await runSubmit(submittedValue)) return;
           onSubmit?.(submittedValue, event);
         }}
-        {...(presentationAdapter?.fields ? { fields: presentationAdapter.fields } : {})}
+        fields={{ ...presentationAdapter?.fields, ArrayField }}
         widgets={{ ...defaultWidgets, ...presentationAdapter?.widgets }}
         templates={{
+          ArrayFieldItemTemplate,
           ...adapterTemplates,
           FieldTemplate,
           ObjectFieldTemplate,
-          ButtonTemplates: { ...adapterButtonTemplates, SubmitButton },
+          ButtonTemplates: { ...defaultActionButtons, ...adapterButtonTemplates, SubmitButton },
         }}
         showErrorList={false}
       />
