@@ -8,6 +8,7 @@ Second-generation visual playground based on the Kinetic Schema prototype.
 - Drag-and-drop and touch-friendly field placement on a 12-column grid
 - Editable AForm YAML with apply and download actions
 - Live auto, mobile, tablet, and desktop preview using `a-form-react`
+- Adapter-aware bold emphasis for edited fields in normal and inline forms
 - JSON or YAML data import with replace and merge modes
 - Self-contained production build for static hosting
 

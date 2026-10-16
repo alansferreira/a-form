@@ -26,6 +26,7 @@ import type { PresentationConfig, SeparatorTemplateProps } from "./presentation.
 import { useAsyncValidation } from "./useAsyncValidation.js";
 import type { AFormAsyncValidationOptions, AsyncFieldState } from "./useAsyncValidation.js";
 import { defaultWidgets } from "./widgets.js";
+import { EditedFieldStyles, editedFieldStyle, useEditedFields } from "./useEditedFields.js";
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType, CSSProperties, FormEvent, ReactNode } from "react";
 
@@ -57,6 +58,8 @@ interface LayoutFormContext {
   readonly separators: readonly SeparatorPlacement[];
   readonly presentationSeparatorTemplate?: ComponentType<SeparatorTemplateProps>;
   readonly rootFormData: JsonObject;
+  readonly editedPaths: readonly string[];
+  readonly editedFieldStyle: CSSProperties | undefined;
 }
 
 interface SeparatorPlacement extends NormalizedSeparatorNode {
@@ -117,6 +120,7 @@ function createFieldTemplate() {
     const context = props.registry.formContext as LayoutFormContext;
     const relation = relationToLayout(path, context);
     const asyncState = context.asyncFields[path];
+    const edited = context.editedPaths.includes(path);
     const AdapterFieldTemplate = context.presentationFieldTemplate;
     const helpTemplate = (props.uiSchema as Record<string, unknown> | undefined)?.["ui:helpTemplate"];
     const templatedProps = typeof helpTemplate === "string"
@@ -141,9 +145,10 @@ function createFieldTemplate() {
 
     return (
       <div
-        className={`a-form-field ${relation.exact ? "a-form-layout-field" : "a-form-nested-field"} ${props.classNames ?? ""}`}
+        className={`a-form-field ${relation.exact ? "a-form-layout-field" : "a-form-nested-field"}${edited ? " a-form-field-edited" : ""} ${props.classNames ?? ""}`}
         data-a-form-field={relation.exact ? path : undefined}
-        style={style}
+        data-edited={edited || undefined}
+        style={{ ...style, ...(edited ? context.editedFieldStyle : undefined) }}
       >
         {AdapterFieldTemplate ? <AdapterFieldTemplate {...templatedProps} /> : renderDefaultFieldContents(templatedProps)}
         {asyncState?.status === "pending" && (
@@ -312,6 +317,7 @@ export function AForm({
     ...adapterTemplates
   } = presentationAdapter?.templates ?? {};
   const latestValue = useRef<JsonObject>(value ?? {});
+  const editedFields = useEditedFields(value);
   latestValue.current = value ?? latestValue.current;
   const { asyncFields, extraErrors, isPending, handleChange, runField, runSubmit } = useAsyncValidation(
     spec.validations?.async ?? [],
@@ -329,7 +335,9 @@ export function AForm({
     layoutPaths: Object.keys(fieldSpans),
     asyncFields,
     separators,
-    rootFormData: value ?? {},
+    rootFormData: value ?? latestValue.current,
+    editedPaths: editedFields.editedPaths,
+    editedFieldStyle: editedFieldStyle(presentationAdapter),
     ...(presentationAdapter?.templates?.FieldTemplate
       ? { presentationFieldTemplate: presentationAdapter.templates.FieldTemplate }
       : {}),
@@ -344,46 +352,51 @@ export function AForm({
   );
 
   return (
-    <Form
-      ref={formRef}
-      className={[className, presentationAdapter?.className].filter(Boolean).join(" ")}
-      schema={spec.schema as RJSFSchema}
-      uiSchema={(spec.uiSchema ?? {}) as UiSchema}
-      validator={validator}
-      formContext={formContext}
-      formData={value ?? {}}
-      idSeparator="."
-      disabled={disabled ?? false}
-      readonly={readOnly ?? false}
-      noHtml5Validate={noHtml5Validate ?? false}
-      extraErrors={extraErrors}
-      onBlur={(id) => {
-        const fieldPath = fieldPathFromId(id);
-        if (!fieldPath) return;
-        void runField(fieldPath, ["blur"], latestValue.current);
-      }}
-      onChange={({ formData }) => {
-        const nextValue = (formData ?? {}) as JsonObject;
-        const previousValue = latestValue.current;
-        latestValue.current = nextValue;
-        onChange?.(nextValue);
-        handleChange(previousValue, nextValue);
-      }}
-      onSubmit={async ({ formData }, event) => {
-        const submittedValue = (formData ?? {}) as JsonObject;
-        latestValue.current = submittedValue;
-        if (await runSubmit(submittedValue)) return;
-        onSubmit?.(submittedValue, event);
-      }}
-      {...(presentationAdapter?.fields ? { fields: presentationAdapter.fields } : {})}
-      widgets={{ ...defaultWidgets, ...presentationAdapter?.widgets }}
-      templates={{
-        ...adapterTemplates,
-        FieldTemplate,
-        ObjectFieldTemplate,
-        ButtonTemplates: { ...adapterButtonTemplates, SubmitButton },
-      }}
-      showErrorList={false}
-    />
+    <>
+      <EditedFieldStyles />
+      <Form
+        ref={formRef}
+        className={[className, presentationAdapter?.className].filter(Boolean).join(" ")}
+        schema={spec.schema as RJSFSchema}
+        uiSchema={(spec.uiSchema ?? {}) as UiSchema}
+        validator={validator}
+        formContext={formContext}
+        formData={value ?? latestValue.current}
+        idSeparator="."
+        disabled={disabled ?? false}
+        readonly={readOnly ?? false}
+        noHtml5Validate={noHtml5Validate ?? false}
+        extraErrors={extraErrors}
+        onBlur={(id) => {
+          const fieldPath = fieldPathFromId(id);
+          if (!fieldPath) return;
+          void runField(fieldPath, ["blur"], latestValue.current);
+        }}
+        onChange={({ formData }, id) => {
+          const nextValue = (formData ?? {}) as JsonObject;
+          const previousValue = latestValue.current;
+          const path = id ? fieldPathFromId(id) : undefined;
+          if (path) editedFields.recordChange(path, previousValue, nextValue);
+          latestValue.current = nextValue;
+          onChange?.(nextValue);
+          handleChange(previousValue, nextValue);
+        }}
+        onSubmit={async ({ formData }, event) => {
+          const submittedValue = (formData ?? {}) as JsonObject;
+          latestValue.current = submittedValue;
+          if (await runSubmit(submittedValue)) return;
+          onSubmit?.(submittedValue, event);
+        }}
+        {...(presentationAdapter?.fields ? { fields: presentationAdapter.fields } : {})}
+        widgets={{ ...defaultWidgets, ...presentationAdapter?.widgets }}
+        templates={{
+          ...adapterTemplates,
+          FieldTemplate,
+          ObjectFieldTemplate,
+          ButtonTemplates: { ...adapterButtonTemplates, SubmitButton },
+        }}
+        showErrorList={false}
+      />
+    </>
   );
 }

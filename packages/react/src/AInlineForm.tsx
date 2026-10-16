@@ -4,13 +4,14 @@ import type { ErrorSchema, RJSFSchema, UiSchema } from "@rjsf/utils";
 import validator from "@rjsf/validator-ajv8";
 import type { JsonObject, JsonValue, NormalizedFormSpec } from "a-form-core";
 import { createElement, useEffect, useId, useMemo, useRef, useState } from "react";
-import type { FocusEvent, FormEvent, KeyboardEvent, ReactNode } from "react";
+import type { CSSProperties, FocusEvent, FormEvent, KeyboardEvent, ReactNode } from "react";
 import { parseInlineTemplate } from "./inlineTemplate.js";
 import type { InlineTemplateDiagnostic, InlineTemplateNode } from "./inlineTemplate.js";
 import type { PresentationConfig } from "./presentation.js";
 import { useAsyncValidation, valueAtPath } from "./useAsyncValidation.js";
 import type { AFormAsyncValidationOptions, AsyncValidationController } from "./useAsyncValidation.js";
 import { defaultWidgets, resolveAsyncOptions } from "./widgets.js";
+import { EditedFieldStyles, editedFieldStyle, useEditedFields } from "./useEditedFields.js";
 
 export type AInlineFormCommitMode = "field" | "form";
 
@@ -182,6 +183,8 @@ interface InlineFieldContext {
   readonly asyncValidation: AsyncValidationController;
   readonly submitErrors: ErrorSchema;
   readonly optionLabels: Map<string, string>;
+  readonly editedPaths: readonly string[];
+  readonly editedFieldStyle: CSSProperties | undefined;
   placeholderPath(expression: string): string | undefined;
   commit(path: string, next: JsonValue | undefined): Promise<boolean>;
 }
@@ -211,6 +214,7 @@ function InlineField({ path, context }: { readonly path: string; readonly contex
     ? fieldUi["ui:title"]
     : typeof fieldSchema.title === "string" ? fieldSchema.title : leaf;
   const current = valueAtPath(context.value, path);
+  const edited = context.editedPaths.includes(path);
   const { asyncFields, extraErrors } = context.asyncValidation;
   const asyncState = asyncFields[path];
   const blockingMessages = errorsAtPath(extraErrors, path);
@@ -294,7 +298,13 @@ function InlineField({ path, context }: { readonly path: string; readonly contex
   ];
 
   return (
-    <span className="a-form-inline-field" data-a-form-inline-field={path} data-state={state}>
+    <span
+      className={`a-form-inline-field${edited ? " a-form-field-edited" : ""}`}
+      data-a-form-inline-field={path}
+      data-state={state}
+      data-edited={edited || undefined}
+      style={edited ? context.editedFieldStyle : undefined}
+    >
       {editing ? (
         <span className="a-form-inline-edit" role="group" aria-label={label} onBlur={onBlur} onKeyDown={onKeyDown}>
           <Form
@@ -428,6 +438,7 @@ export function AInlineForm({
   const [submitErrors, setSubmitErrors] = useState<ErrorSchema>({});
   const optionLabels = useRef(new Map<string, string>()).current;
   const currentValue = value ?? internalValue;
+  const editedFields = useEditedFields(currentValue);
   const asyncController = useAsyncValidation(spec.validations?.async ?? [], asyncValidation);
   const mergedLabels = { ...DEFAULT_LABELS, ...labels };
 
@@ -512,17 +523,21 @@ export function AInlineForm({
     asyncValidation: asyncController,
     submitErrors,
     optionLabels,
+    editedPaths: editedFields.editedPaths,
+    editedFieldStyle: editedFieldStyle(presentationAdapter),
     placeholderPath: (expression) => isScalarField(expression) ? expression : undefined,
     async commit(path, next) {
       const merged = setValueAtPath(currentValue, path, next);
       if (commitMode === "field") {
         const results = await asyncController.runField(path, ["blur", "submit", "change"], merged);
         if (results.some((result) => result.blocking)) return false;
+        editedFields.recordChange(path, currentValue, merged);
         applyValue(merged);
         onCommit?.({ path, value: next, formData: merged });
         return true;
       }
       setSubmitErrors((errors) => setValueAtPath(errors as JsonObject, path, undefined) as ErrorSchema);
+      editedFields.recordChange(path, currentValue, merged);
       applyValue(merged);
       void asyncController.runField(path, ["blur"], merged);
       return true;
@@ -540,7 +555,7 @@ export function AInlineForm({
     );
   }
 
-  const content = renderNodes(parsed.nodes, context);
+  const content = <><EditedFieldStyles />{renderNodes(parsed.nodes, context)}</>;
 
   if (commitMode === "field") {
     return <div className={rootClassName}>{content}</div>;

@@ -150,6 +150,7 @@ describe("AInlineForm", () => {
 
     expect(onCommit).not.toHaveBeenCalled();
     expect(field(container, "email").dataset.state).toBe("edit");
+    expect(field(container, "email").hasAttribute("data-edited")).toBe(false);
   });
 
   it("blocks the commit on blocking async issues and commits on warnings", async () => {
@@ -179,6 +180,7 @@ describe("AInlineForm", () => {
     expect(onCommit).not.toHaveBeenCalled();
     expect(field(container, "email").dataset.state).toBe("edit");
     expect(field(container, "email").textContent).toContain("Email taken.");
+    expect(field(container, "email").hasAttribute("data-edited")).toBe(false);
 
     await typeInto(field(container, "email").querySelector<HTMLInputElement>("input")!, "ana@odd.io");
     await click(field(container, "email").querySelector<HTMLButtonElement>(".a-form-inline-confirm")!);

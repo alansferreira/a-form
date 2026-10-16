@@ -223,6 +223,20 @@ The component applies the selected normalized span through CSS Grid. It renders 
 
 ## Styling Hooks
 
+Both `AForm` and `AInlineForm` give edited fields persistent bold emphasis. Normal
+fields are marked on user changes; inline fields are marked only after a
+successful confirmation, in either commit mode. Cancelled or rejected inline
+edits do not add a mark. Returning to the original value removes it.
+Initial/default values and external changes to untouched fields are not edits.
+Tracking lasts for the mounted form and is not cleared by submit.
+
+The wrapper exposes `.a-form-field-edited` and `data-edited="true"`. Labels and
+values become bold without adding an outline or replacing focus or validation
+styles. The default weight is 700; Neobrutalism uses its heavier 900 weight.
+Custom adapters can provide `editedFieldStyle` (React `CSSProperties`) to
+override the emphasis, including `fontWeight`. The renderer also applies this
+weight to controls whose framework styles would otherwise prevent inheritance.
+
 Use `className` to scope your design and target the stable `a-form-*` hooks:
 
 ```css

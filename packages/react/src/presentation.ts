@@ -4,7 +4,7 @@ import type {
   RegistryWidgetsType,
   TemplatesType,
 } from "@rjsf/utils";
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 
 export interface SeparatorTemplateProps {
   readonly id: string;
@@ -21,6 +21,7 @@ export type PresentationTemplates = Partial<Omit<TemplatesType, "FieldTemplate" 
 export interface PresentationAdapter {
   readonly id: string;
   readonly className?: string;
+  readonly editedFieldStyle?: CSSProperties;
   readonly fields?: RegistryFieldsType;
   readonly widgets?: RegistryWidgetsType;
   readonly templates?: PresentationTemplates;

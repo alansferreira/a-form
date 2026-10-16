@@ -149,6 +149,29 @@ export const CompactAdapter: PresentationAdapter = {
 The AForm wrapper still owns layout spans, field ordering, hidden fields and
 async validation status. The custom template owns the field's visual markup.
 
+## Edited field emphasis
+
+Normal and inline fields expose `.a-form-field-edited` and `data-edited="true"`
+after a user edit (after successful confirmation for inline fields). Reverting
+to the original value removes the highlight. Initial values, cancelled edits,
+and programmatic updates to untouched fields are not marked.
+
+The renderer makes edited labels and values bold without adding an outline or
+changing widget focus or error styles. The default weight is 700 across the
+base renderer, Bootstrap, Material, and Tailwind; Neobrutalism uses 900.
+Framework control styles do not override the edited weight.
+
+Custom adapters can supply their preferred emphasis directly:
+
+```tsx
+const CustomAdapter: PresentationAdapter = {
+  id: "custom",
+  editedFieldStyle: {
+    fontWeight: 800,
+  },
+};
+```
+
 ## Implement a custom widget
 
 Use the RJSF `WidgetProps` contract for value, events and disabled/read-only

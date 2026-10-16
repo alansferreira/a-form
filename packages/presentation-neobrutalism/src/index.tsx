@@ -26,6 +26,9 @@ function FieldTemplate(props: FieldTemplateProps) {
 export const NeobrutalismAdapter: PresentationAdapter = {
   id: "neobrutalism",
   className: "a-form-neobrutalism",
+  editedFieldStyle: {
+    fontWeight: 900,
+  },
   templates: { FieldTemplate },
 };
 
