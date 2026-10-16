@@ -1,0 +1,59 @@
+# Sanitized example data for helm-values-production.a-form.yaml.
+# Secret references only; no credentials are stored in this file.
+worker:
+  enabled: true
+  worker:
+    mode: cronjob
+    image:
+      repository: registry.example.com/platform/inventory
+      tag: "1.0.0"
+      pullPolicy: IfNotPresent
+    resources:
+      requests: { cpu: "100m", memory: "512Mi" }
+      limits: { cpu: "500m", memory: "2Gi" }
+    env:
+      - { name: APP_NAME, value: inventory }
+      - { name: LOG_LEVEL, value: INFO }
+      - { name: SFTP_PATH, value: /data/inventory/ }
+      - name: SFTP_HOST
+        valueFrom: { secretKeyRef: { name: inventory-secret, key: SFTP_HOST } }
+      - name: SFTP_USER
+        valueFrom: { secretKeyRef: { name: inventory-secret, key: SFTP_USER } }
+      - name: SFTP_PASSWORD
+        valueFrom: { secretKeyRef: { name: inventory-secret, key: SFTP_PASSWORD } }
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1001
+  cronjob:
+    schedule: "0 3 * * *"
+    timeZone: America/Sao_Paulo
+    concurrencyPolicy: Forbid
+    activeDeadlineSeconds: 7200
+    backoffLimit: 3
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 3
+    ttlSecondsAfterFinished: 86400
+  serviceAccount:
+    create: true
+    annotations: {}
+  configMap:
+    enabled: false
+  externalSecrets:
+    enabled: true
+    secretStoreName: example-secret-store-prd
+    secretStoreKind: ClusterSecretStore
+    refreshInterval: 1h
+    secrets:
+      - name: inventory-secret
+        dataFrom:
+          - extract:
+              key: inventory-prd
+service:
+  annotations:
+    buildId: 00000000-0000-4000-8000-000000000001
+    commitSha: abcdef0
+    imageTag: 1.0.0
+    imageDigest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+    deployedAt: "2026-10-15T18:40:24Z"
+    environment: prd
+    coreVersion: 1.41.0

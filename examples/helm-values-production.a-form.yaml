@@ -1,0 +1,262 @@
+# yaml-language-server: $schema=../schemas/a-form.schema.json
+# Companion data: helm-values-production.values.yaml
+# This example defines a production policy, not the complete Kubernetes API.
+# Cron is checked for five fields only; semantic validation belongs in the host.
+# JSON Schema readOnly is a UI hint, not protection against pipeline metadata changes.
+version: "1"
+schema:
+  title: Production Helm values
+  type: object
+  additionalProperties: false
+  required: [worker, service]
+  definitions:
+    nonEmptyString:
+      type: string
+      minLength: 1
+      pattern: '\S'
+    resourcePair:
+      type: object
+      additionalProperties: false
+      required: [cpu, memory]
+      properties:
+        cpu:
+          title: CPU
+          type: string
+          pattern: '^(?:[0-9]+(?:\.[0-9]+)?|[0-9]+m)$'
+          description: 'Examples: 100m, 500m, 1, 0.5.'
+        memory:
+          title: Memory
+          type: string
+          pattern: '^[1-9][0-9]*(?:Ki|Mi|Gi|Ti|Pi|Ei|k|M|G|T|P|E)?$'
+          description: 'Integer quantities, optionally with a unit; examples: 512Mi, 2Gi.'
+    secretKeyRef:
+      type: object
+      additionalProperties: false
+      required: [name, key]
+      properties:
+        name: { $ref: '#/definitions/nonEmptyString', title: Kubernetes Secret name }
+        key: { $ref: '#/definitions/nonEmptyString', title: Secret key }
+    environmentVariable:
+      type: object
+      title: Environment variable
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          title: Name
+          pattern: '^[A-Z_][A-Z0-9_]*$'
+        value: { type: string, title: Plain value }
+        valueFrom:
+          type: object
+          title: Secret reference
+          additionalProperties: false
+          required: [secretKeyRef]
+          properties:
+            secretKeyRef: { $ref: '#/definitions/secretKeyRef' }
+      oneOf:
+        - title: Plain value
+          required: [value]
+          not: { required: [valueFrom] }
+        - title: Kubernetes Secret
+          required: [valueFrom]
+          not: { required: [value] }
+      if:
+        properties:
+          name:
+            pattern: '(?:^|_)(?:PASSWORD|TOKEN|SECRET|API_KEY|APP_KEY|APP_TOKEN|PRIVATE_KEY)(?:_|$)'
+        required: [name]
+      then:
+        required: [valueFrom]
+        properties:
+          value: false
+  properties:
+    worker:
+      type: object
+      additionalProperties: false
+      required: [enabled, worker, cronjob, serviceAccount, configMap, externalSecrets]
+      properties:
+        enabled: { type: boolean, const: true, title: Enable worker }
+        worker:
+          type: object
+          additionalProperties: false
+          required: [mode, image, resources, env, securityContext]
+          properties:
+            mode: { type: string, const: cronjob, title: Execution mode }
+            image:
+              type: object
+              title: Container image
+              additionalProperties: false
+              required: [repository, tag, pullPolicy]
+              properties:
+                repository:
+                  type: string
+                  title: Repository
+                  minLength: 1
+                  pattern: '^\S+$'
+                tag:
+                  type: string
+                  title: Tag managed by the pipeline
+                  pattern: '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$'
+                  not: { enum: [latest, main, master] }
+                  readOnly: true
+                pullPolicy: { type: string, const: IfNotPresent, title: Pull policy }
+            resources:
+              type: object
+              title: CPU and memory
+              additionalProperties: false
+              required: [requests, limits]
+              properties:
+                requests: { $ref: '#/definitions/resourcePair', title: Requests }
+                limits: { $ref: '#/definitions/resourcePair', title: Limits }
+            env:
+              type: array
+              title: Environment variables
+              minItems: 1
+              items: { $ref: '#/definitions/environmentVariable' }
+            securityContext:
+              type: object
+              title: Container security
+              additionalProperties: false
+              required: [runAsNonRoot, runAsUser]
+              properties:
+                runAsNonRoot: { type: boolean, const: true, title: Run as non-root }
+                runAsUser: { type: integer, minimum: 1, title: User ID }
+        cronjob:
+          type: object
+          title: CronJob
+          additionalProperties: false
+          required:
+            - schedule
+            - timeZone
+            - concurrencyPolicy
+            - activeDeadlineSeconds
+            - backoffLimit
+            - successfulJobsHistoryLimit
+            - failedJobsHistoryLimit
+            - ttlSecondsAfterFinished
+          properties:
+            schedule:
+              type: string
+              title: Schedule
+              pattern: '^\S+(?:[ \t]+\S+){4}$'
+              description: Five cron fields; this pattern does not validate ranges or execution dates.
+            timeZone: { type: string, const: America/Sao_Paulo, title: Time zone }
+            concurrencyPolicy: { type: string, const: Forbid, title: Concurrency policy }
+            activeDeadlineSeconds: { type: integer, minimum: 1, title: Deadline in seconds }
+            backoffLimit: { type: integer, minimum: 0, title: Retry limit }
+            successfulJobsHistoryLimit: { type: integer, minimum: 0, title: Successful job history }
+            failedJobsHistoryLimit: { type: integer, minimum: 0, title: Failed job history }
+            ttlSecondsAfterFinished: { type: integer, minimum: 0, title: TTL after completion in seconds }
+        serviceAccount:
+          type: object
+          title: Service account
+          additionalProperties: false
+          required: [create, annotations]
+          properties:
+            create: { type: boolean, title: Create service account }
+            annotations:
+              type: object
+              title: Workload Identity annotations
+              additionalProperties: { type: string }
+        configMap:
+          type: object
+          title: ConfigMap
+          additionalProperties: false
+          required: [enabled]
+          properties:
+            enabled: { type: boolean, title: Enable ConfigMap }
+        externalSecrets:
+          type: object
+          title: External Secrets
+          additionalProperties: false
+          required: [enabled, secretStoreName, secretStoreKind, refreshInterval, secrets]
+          properties:
+            enabled: { type: boolean, const: true, title: Enable External Secrets }
+            secretStoreName: { $ref: '#/definitions/nonEmptyString', title: Secret store name }
+            secretStoreKind:
+              type: string
+              title: Secret store kind
+              enum: [ClusterSecretStore, SecretStore]
+            refreshInterval:
+              type: string
+              title: Refresh interval
+              pattern: '^[1-9][0-9]*(?:s|m|h)$'
+              description: A positive integer followed by s, m, or h; for example 1h.
+            secrets:
+              type: array
+              title: Secret mappings
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [name, dataFrom]
+                properties:
+                  name: { $ref: '#/definitions/nonEmptyString', title: Kubernetes Secret name }
+                  dataFrom:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [extract]
+                      properties:
+                        extract:
+                          type: object
+                          additionalProperties: false
+                          required: [key]
+                          properties:
+                            key: { $ref: '#/definitions/nonEmptyString', title: Remote Secret Manager key }
+    service:
+      type: object
+      additionalProperties: false
+      required: [annotations]
+      properties:
+        annotations:
+          type: object
+          title: Deployment metadata
+          readOnly: true
+          additionalProperties: false
+          required: [buildId, commitSha, imageTag, imageDigest, deployedAt, environment, coreVersion]
+          properties:
+            buildId: { type: string, format: uuid, title: Build ID }
+            commitSha: { type: string, pattern: '^[a-f0-9]{7,40}$', title: Commit SHA }
+            imageTag: { $ref: '#/definitions/nonEmptyString', title: Pipeline image tag }
+            imageDigest: { type: string, pattern: '^sha256:[a-f0-9]{64}$', title: Image digest }
+            deployedAt: { type: string, format: date-time, title: Deployment timestamp }
+            environment: { type: string, const: prd, title: Environment }
+            coreVersion:
+              type: string
+              title: Core version
+              pattern: '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
+uiSchema:
+  worker:
+    worker:
+      image:
+        tag:
+          ui:readonly: true
+      env:
+        ui:options:
+          addable: true
+          removable: true
+          orderable: true
+  service:
+    annotations:
+      ui:readonly: true
+layout:
+  - { type: separator, title: Worker }
+  - { type: field, path: worker.enabled, span: 6 }
+  - { type: field, path: worker.worker.mode, span: 6 }
+  - { type: field, path: worker.worker.image, span: 12 }
+  - { type: separator, title: Resources and environment }
+  - { type: field, path: worker.worker.resources, span: 12 }
+  - { type: field, path: worker.worker.env, span: 12 }
+  - { type: field, path: worker.worker.securityContext, span: 12 }
+  - { type: separator, title: Scheduling }
+  - { type: field, path: worker.cronjob, span: 12 }
+  - { type: separator, title: Identity and configuration }
+  - { type: field, path: worker.serviceAccount, span: 12 }
+  - { type: field, path: worker.configMap, span: 12 }
+  - { type: field, path: worker.externalSecrets, span: 12 }
+  - { type: separator, title: Pipeline metadata }
+  - { type: field, path: service.annotations, span: 12 }
